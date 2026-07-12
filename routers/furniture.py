@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, status, HTTPException
 from pydantic import BaseModel
 
 router_furniture = APIRouter()
@@ -31,3 +31,46 @@ def list_furniture() -> list[FurnitureDetails]:
     :return: Furniture details
     """
     return all_furniture
+
+
+@router_furniture.get('/furniture/{fur_id}', status_code=status.HTTP_200_OK)
+def get_furniture(fur_id: int) -> FurnitureDetails:
+    """
+    Fetch the furniture details
+    :return: specific furniture details
+    """
+    for i in all_furniture:
+        if i.fur_id == fur_id:
+            return i
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Furniture item:{fur_id} not found")
+
+
+@router_furniture.delete('/furniture/{fur_id}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_furniture(fur_id: int) -> None:
+    """
+    Deletes the furniture details
+    :return:
+    """
+    for i in all_furniture:
+        if i.fur_id == fur_id:
+            all_furniture.remove(i)
+            return
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Furniture item:{fur_id} not found")
+
+
+@router_furniture.put('/furniture/{fur_id}', status_code=status.HTTP_200_OK)
+def update_furniture(fur_id: int, furniture: FurnitureDetails) -> FurnitureDetails:
+    """
+    Updates the furniture details
+    :return: Updated furniture details
+    """
+    if furniture.fur_id != fur_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{fur_id} in path-parameter and body "
+                                                                            f"request({furniture.fur_id}) is "
+                                                                            f"not same")
+
+    for index, value in enumerate(all_furniture):
+        if value.fur_id == fur_id:
+            all_furniture[index] = furniture
+            return all_furniture[index]
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Furniture item:{fur_id} not found")
