@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, status, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 router_equipments = APIRouter()
 
 
 class GymEquipments(BaseModel):
-    equip_id: int
-    equip_name: str
-    equip_count: int
-    equip_lease: bool
+    equip_id: int = Field(description="Unique id of the equipment")
+    equip_name: str = Field(description="Name of the equipment", max_length=100)
+    equip_description: str | None = Field(description="A short description about the equipment", max_length=1000,
+                                          default=None)
+    equip_count: int = Field(gt=0, description="Number of the items present")
+    equip_lease: bool = Field(default=False, description="Equipment is on lease or not")
 
 
 all_gym_equipments: list[GymEquipments] = []

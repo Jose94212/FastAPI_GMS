@@ -1,13 +1,17 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, status, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 router_furniture = APIRouter()
 
 
 class FurnitureDetails(BaseModel):
-    fur_id: int
-    fur_name: str
-    fur_count: int
+    fur_id: int = Field(description="Unique id of the furniture")
+    fur_name: str = Field(description="Name of the furniture", max_length=100, examples=["sofa or office-desk"])
+    fur_description: str | None = Field(description="A short description of the furniture", max_length=200,
+                                        default=None)
+    fur_count: int = Field(gt=0, description="Number of items")
 
 
 all_furniture: list[FurnitureDetails] = []

@@ -1,17 +1,38 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, status, HTTPException
-from pydantic import BaseModel
+from enum import Enum
+
+from fastapi import APIRouter, status, HTTPException, Query
+from pydantic import BaseModel, Field
 
 router_users = APIRouter()
 
 
+class Gender(str, Enum):
+    """
+    This class specifies about the gender
+    """
+    male = "male"
+    female = "female"
+
+
+class UserTitle(str, Enum):
+    """
+    User specifications
+    """
+    owner = "owner"
+    trainer = "trainer"
+    member = "member"
+
+
 class UserProfile(BaseModel):
-    name: str
-    email_id: str
-    age: int
-    position: str
-    user_id: int
+    name: str = Field(description="Name of the user", max_length=100)
+    email_id: str = Field(description="Email id of the user", max_length=190)
+    age: int = Field(description="Age of the user", gt=14)
+    position: UserTitle = Field(description="Position of the user", examples=["owner", "trainer", "member"],
+                                default="member")
+    user_id: int = Field(description="Unique id of the user", gt=0)
+    gender: Gender = Field(description="Sex of the person, in small letters", examples=["male", "female"])
 
 
 all_users: list[UserProfile] = []
@@ -29,19 +50,19 @@ def add_user(user: UserProfile) -> UserProfile:
 
 
 @router_users.get("/users", status_code=status.HTTP_200_OK)
-def list_users() -> list[UserProfile]:
+def list_users(skip: int = Query(default=0, ge=0), limit: int = Query(default=25, ge=1, le=100)) -> list[UserProfile]:
     """
     List all users
     :return:
     """
-    return all_users
+    return all_users[skip:skip + limit]
 
 
 @router_users.get("/users/{user_id}", status_code=status.HTTP_200_OK)
 def get_user(user_id: int) -> UserProfile:
     """
-    List all users
-    :return:
+    Fetches the details of the user
+    :return: User details
     """
     for usr in all_users:
         if usr.user_id == user_id:
