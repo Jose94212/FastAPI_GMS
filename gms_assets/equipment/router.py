@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, status, HTTPException, Depends
 from pydantic import BaseModel, Field
 
-router_equipment = APIRouter()
+router_equipment = APIRouter(tags=["Equipments"])
 
 
 class GymEquipment(BaseModel):

@@ -5,10 +5,10 @@ from enum import Enum
 from fastapi import APIRouter, status, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
 
-router_users = APIRouter()
+router_users = APIRouter(tags=["Users"])
 
 
-class _Gender(str, Enum):
+class Gender(str, Enum):
     """
     This class specifies about the gender
     """
@@ -16,7 +16,7 @@ class _Gender(str, Enum):
     female = "female"
 
 
-class _UserTitle(str, Enum):
+class UserTitle(str, Enum):
     """
     User specifications
     """
@@ -29,10 +29,10 @@ class UserProfile(BaseModel):
     name: str = Field(description="Name of the user", max_length=100)
     email_id: str = Field(description="Email id of the user", max_length=190)
     age: int = Field(description="Age of the user", gt=14)
-    position: _UserTitle = Field(description="Position of the user", examples=["owner", "trainer", "member"],
-                                 default="member")
+    position: UserTitle = Field(description="Position of the user", examples=["owner", "trainer", "member"],
+                                default="member")
     user_id: int = Field(description="Unique id of the user", gt=0)
-    gender: _Gender = Field(description="Sex of the person, in small letters", examples=["male", "female"])
+    gender: Gender = Field(description="Sex of the person, in small letters", examples=["male", "female"])
     contact_number: str = Field(description="Personal number to contact")
     emergency_contact_number: str = Field(description="A contact-number other than personal which can be used for "
                                                       "emergencies")
@@ -41,10 +41,10 @@ class UserProfile(BaseModel):
 
 class UserProfileResponse(BaseModel):
     name: str = Field(description="Name of the user", max_length=100)
-    position: _UserTitle = Field(description="Position of the user", examples=["owner", "trainer", "member"],
-                                 default="member")
+    position: UserTitle = Field(description="Position of the user", examples=["owner", "trainer", "member"],
+                                default="member")
     user_id: int = Field(description="Unique id of the user", gt=0)
-    gender: _Gender = Field(description="Sex of the person, in small letters", examples=["male", "female"])
+    gender: Gender = Field(description="Sex of the person, in small letters", examples=["male", "female"])
 
 
 all_users: list[UserProfile] = []
