@@ -7,7 +7,8 @@ from database import get_db_session
 from gms_assets.equipment.models import GymEquipment
 from gms_assets.equipment.schemas import GymEquipmentCreate
 
-router_equipment = APIRouter(tags=["Equipment"])
+router_equipment = APIRouter(tags=["Equipment"],
+                             prefix="/gym_equipment")
 
 
 def _fetch_item_details(equip_id: int, db_session: Session = Depends(get_db_session)) -> GymEquipment:
@@ -23,7 +24,7 @@ def _fetch_item_details(equip_id: int, db_session: Session = Depends(get_db_sess
     return item
 
 
-@router_equipment.post('/gym_equipment', status_code=status.HTTP_201_CREATED)
+@router_equipment.post('/', status_code=status.HTTP_201_CREATED)
 def add_equipment(gym_equip: GymEquipmentCreate, db_session: Session = Depends(get_db_session)) -> GymEquipment:
     """
     Adds a new gym equipment item.
@@ -38,7 +39,7 @@ def add_equipment(gym_equip: GymEquipmentCreate, db_session: Session = Depends(g
     return db_item
 
 
-@router_equipment.get("/gym_equipment", summary="Lists all gym equipment available", status_code=status.HTTP_200_OK)
+@router_equipment.get("/", summary="Lists all gym equipment available", status_code=status.HTTP_200_OK)
 def list_gym_equipment(db_session: Session = Depends(get_db_session)) -> Sequence[GymEquipment]:
     """
     Fetches all gym equipment details.
@@ -48,7 +49,7 @@ def list_gym_equipment(db_session: Session = Depends(get_db_session)) -> Sequenc
     return db_session.exec(select(GymEquipment)).all()
 
 
-@router_equipment.get("/gym_equipment/{equip_id}", status_code=status.HTTP_200_OK)
+@router_equipment.get("/{equip_id}", status_code=status.HTTP_200_OK)
 def get_gym_equipment(equip_item: GymEquipment = Depends(_fetch_item_details)) -> GymEquipment:
     """
     Fetches the details of a specific gym equipment item.
@@ -58,7 +59,7 @@ def get_gym_equipment(equip_item: GymEquipment = Depends(_fetch_item_details)) -
     return equip_item
 
 
-@router_equipment.put('/gym_equipment/{equip_id}', status_code=status.HTTP_200_OK)
+@router_equipment.put('/{equip_id}', status_code=status.HTTP_200_OK)
 def update_equipment(updated_item: GymEquipmentCreate,
                      existing_item: GymEquipment = Depends(_fetch_item_details),
                      db_session: Session = Depends(get_db_session)) -> GymEquipment:
@@ -79,7 +80,7 @@ def update_equipment(updated_item: GymEquipmentCreate,
     return existing_item
 
 
-@router_equipment.delete("/gym_equipment/{equip_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router_equipment.delete("/{equip_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_gym_equipment(existing_item: GymEquipment = Depends(_fetch_item_details),
                          db_session: Session = Depends(get_db_session)) -> None:
     """

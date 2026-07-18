@@ -7,7 +7,8 @@ from database import get_db_session
 from gms_assets.furniture.models import FurnitureDetails
 from gms_assets.furniture.schemas import FurnitureDetailsCreate
 
-router_furniture = APIRouter(tags=["Furniture"])
+router_furniture = APIRouter(tags=["Furniture"],
+                             prefix="/furniture")
 
 
 def _fetch_item_details(fur_id: int, db_session: Session = Depends(get_db_session)) -> FurnitureDetails:
@@ -23,7 +24,7 @@ def _fetch_item_details(fur_id: int, db_session: Session = Depends(get_db_sessio
     return item
 
 
-@router_furniture.post("/furniture", status_code=status.HTTP_201_CREATED)
+@router_furniture.post("/", status_code=status.HTTP_201_CREATED)
 def add_furniture(furniture: FurnitureDetailsCreate,
                   db_session: Session = Depends(get_db_session)) -> FurnitureDetails:
     """
@@ -39,7 +40,7 @@ def add_furniture(furniture: FurnitureDetailsCreate,
     return db_item
 
 
-@router_furniture.get('/furniture', status_code=status.HTTP_200_OK)
+@router_furniture.get('/', status_code=status.HTTP_200_OK)
 def list_furniture(db_session: Session = Depends(get_db_session)) -> Sequence[FurnitureDetails]:
     """
     Lists all furniture available in the gym.
@@ -49,7 +50,7 @@ def list_furniture(db_session: Session = Depends(get_db_session)) -> Sequence[Fu
     return db_session.exec(select(FurnitureDetails)).all()
 
 
-@router_furniture.get('/furniture/{fur_id}', status_code=status.HTTP_200_OK)
+@router_furniture.get('/{fur_id}', status_code=status.HTTP_200_OK)
 def get_furniture(fur_item: FurnitureDetails = Depends(_fetch_item_details)) -> FurnitureDetails:
     """
     Fetches the details of a specific furniture item.
@@ -59,7 +60,7 @@ def get_furniture(fur_item: FurnitureDetails = Depends(_fetch_item_details)) -> 
     return fur_item
 
 
-@router_furniture.put('/furniture/{fur_id}', status_code=status.HTTP_200_OK)
+@router_furniture.put('/{fur_id}', status_code=status.HTTP_200_OK)
 def update_furniture(updated_item: FurnitureDetailsCreate,
                      existing_item: FurnitureDetails = Depends(_fetch_item_details),
                      db_session: Session = Depends(get_db_session)) -> FurnitureDetails:
@@ -79,7 +80,7 @@ def update_furniture(updated_item: FurnitureDetailsCreate,
     return existing_item
 
 
-@router_furniture.delete('/furniture/{fur_id}', status_code=status.HTTP_204_NO_CONTENT)
+@router_furniture.delete('/{fur_id}', status_code=status.HTTP_204_NO_CONTENT)
 def delete_furniture(existing_item: FurnitureDetails = Depends(_fetch_item_details),
                      db_session: Session = Depends(get_db_session)) -> None:
     """

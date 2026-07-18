@@ -7,7 +7,8 @@ from database import get_db_session
 from gms_assets.users.models import UserProfile
 from gms_assets.users.schemas import UserProfileCreate, UserProfileResponse
 
-router_users = APIRouter(tags=["Users"])
+router_users = APIRouter(tags=["Users"],
+                         prefix="/users")
 
 
 def _fetch_item_details(user_id: int, db_session: Session = Depends(get_db_session)) -> UserProfile:
@@ -23,7 +24,7 @@ def _fetch_item_details(user_id: int, db_session: Session = Depends(get_db_sessi
     return item
 
 
-@router_users.post("/users", status_code=status.HTTP_201_CREATED)
+@router_users.post("/", status_code=status.HTTP_201_CREATED)
 def add_user(user: UserProfileCreate, db_session: Session = Depends(get_db_session)) -> UserProfile:
     """
     Adds a new user.
@@ -38,7 +39,7 @@ def add_user(user: UserProfileCreate, db_session: Session = Depends(get_db_sessi
     return db_item
 
 
-@router_users.get("/users", response_model=list[UserProfileResponse], status_code=status.HTTP_200_OK)
+@router_users.get("/", response_model=list[UserProfileResponse], status_code=status.HTTP_200_OK)
 def list_users(skip: int = Query(default=0, ge=0),
                limit: int = Query(default=25, ge=1, le=100),
                db_session: Session = Depends(get_db_session)) -> Sequence[UserProfile]:
@@ -52,7 +53,7 @@ def list_users(skip: int = Query(default=0, ge=0),
     return db_session.exec(select(UserProfile).offset(skip).limit(limit)).all()
 
 
-@router_users.get("/users/{user_id}", status_code=status.HTTP_200_OK)
+@router_users.get("/{user_id}", status_code=status.HTTP_200_OK)
 def get_user(user_item: UserProfile = Depends(_fetch_item_details)) -> UserProfile:
     """
     Fetches the details of a specific user.
@@ -62,7 +63,7 @@ def get_user(user_item: UserProfile = Depends(_fetch_item_details)) -> UserProfi
     return user_item
 
 
-@router_users.put("/users/{user_id}", status_code=status.HTTP_200_OK)
+@router_users.put("/{user_id}", status_code=status.HTTP_200_OK)
 def update_user(updated_user: UserProfileCreate,
                 existing_user: UserProfile = Depends(_fetch_item_details),
                 db_session: Session = Depends(get_db_session)) -> UserProfile:
@@ -87,7 +88,7 @@ def update_user(updated_user: UserProfileCreate,
     return existing_user
 
 
-@router_users.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router_users.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(existing_user: UserProfile = Depends(_fetch_item_details),
                 db_session: Session = Depends(get_db_session)) -> None:
     """

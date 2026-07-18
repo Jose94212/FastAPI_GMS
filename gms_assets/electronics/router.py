@@ -7,7 +7,8 @@ from database import get_db_session
 from gms_assets.electronics.schemas import GymElectronicsCreate
 from gms_assets.electronics.models import GymElectronics
 
-router_electronics = APIRouter(tags=["Electronics"])
+router_electronics = APIRouter(prefix="/electronics",
+                               tags=["Electronics"])
 
 
 def _fetch_item_details(electro_id: int, session: Session = Depends(get_db_session)) -> GymElectronics:
@@ -23,7 +24,7 @@ def _fetch_item_details(electro_id: int, session: Session = Depends(get_db_sessi
     return item
 
 
-@router_electronics.post("/electronics", status_code=status.HTTP_201_CREATED)
+@router_electronics.post("/", status_code=status.HTTP_201_CREATED)
 def add_electronics(electronic_item: GymElectronicsCreate,
                     db_session: Session = Depends(get_db_session)) -> GymElectronics:
     """
@@ -39,7 +40,7 @@ def add_electronics(electronic_item: GymElectronicsCreate,
     return db_item
 
 
-@router_electronics.get('/electronics/{electro_id}', status_code=status.HTTP_200_OK)
+@router_electronics.get('/{electro_id}', status_code=status.HTTP_200_OK)
 def get_electronics(electro_item: GymElectronics = Depends(_fetch_item_details)) -> GymElectronics:
     """
     Fetches the details of the specific electronic item.
@@ -49,7 +50,7 @@ def get_electronics(electro_item: GymElectronics = Depends(_fetch_item_details))
     return electro_item
 
 
-@router_electronics.get('/electronics', status_code=status.HTTP_200_OK)
+@router_electronics.get('/', status_code=status.HTTP_200_OK)
 def list_electronics(db_session: Session = Depends(get_db_session)) -> Sequence[GymElectronics]:
     """
     Fetches all electronic items
@@ -58,7 +59,7 @@ def list_electronics(db_session: Session = Depends(get_db_session)) -> Sequence[
     return db_session.exec(select(GymElectronics)).all()
 
 
-@router_electronics.delete('/electronics/{electro_id}', status_code=status.HTTP_204_NO_CONTENT)
+@router_electronics.delete('/{electro_id}', status_code=status.HTTP_204_NO_CONTENT)
 def delete_electronics(existing_item: GymElectronics = Depends(_fetch_item_details),
                        db_session: Session = Depends(get_db_session)) -> None:
     """
@@ -70,7 +71,7 @@ def delete_electronics(existing_item: GymElectronics = Depends(_fetch_item_detai
     return
 
 
-@router_electronics.put('/electronics/{electro_id}', status_code=status.HTTP_200_OK)
+@router_electronics.put('/{electro_id}', status_code=status.HTTP_200_OK)
 def update_electronics(updated_item: GymElectronicsCreate,
                        existing_item: GymElectronics = Depends(_fetch_item_details),
                        db_session: Session = Depends(get_db_session)) -> GymElectronics:
