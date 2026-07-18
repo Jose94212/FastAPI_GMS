@@ -1,52 +1,42 @@
-from __future__ import annotations
+from collections.abc import Sequence
 
-from fastapi import APIRouter, status, HTTPException, Depends
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, status, Depends, HTTPException
+from sqlmodel import Session, select
+
+from database import get_db_session
+from gms_assets.electronics.schemas import GymElectronicsCreate
+from gms_assets.electronics.models import GymElectronics
 
 router_electronics = APIRouter(tags=["Electronics"])
 
 
-class GymElectronics(BaseModel):
-    electro_id: int = Field(description="Unique item id")
-    electro_name: str = Field(description="Name of the electronic item", examples=["Fan"], max_length=100)
-    electro_description: str | None = Field(default=None, description="A short description of the item",
-                                            max_length=200)
-    electro_count: int = Field(description="Number of items", gt=0)
-
-
-all_gym_electronics: list[GymElectronics] = []
-
-
-def _fetch_item_details(electro_id: int) -> GymElectronics:
+def _fetch_item_details(electro_id: int, session: Session = Depends(get_db_session)) -> GymElectronics:
     """
-    Iterates through the list of GymElectronics objects and returns the details of the matching item id.
-    :param electro_id: Item's id
-    :return: Details of the matched item id.
+    Fetches the details of a single item.
+    :param electro_id: ID of the electronic item.
+    :param session: DB session.
+    :return: Details of the item.
     """
-    for el in all_gym_electronics:
-        if el.electro_id == electro_id:
-            return el
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Electronics item:{electro_id} not found")
+    item = session.get(GymElectronics, electro_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Electronics item:{electro_id} not found")
+    return item
 
 
 @router_electronics.post("/electronics", status_code=status.HTTP_201_CREATED)
-def add_electronics(electronic_item: GymElectronics) -> GymElectronics:
+def add_electronics(electronic_item: GymElectronicsCreate,
+                    db_session: Session = Depends(get_db_session)) -> GymElectronics:
     """
-    To add electronic items
+    Adds electronic items.
+    :param db_session:
     :param electronic_item:
     :return:
     """
-    all_gym_electronics.append(electronic_item)
-    return electronic_item
-
-
-@router_electronics.get('/electronics', status_code=status.HTTP_200_OK)
-def list_electronics() -> list[GymElectronics]:
-    """
-    Fetches all electronic items
-    :return: a list of all electronic items
-    """
-    return all_gym_electronics
+    db_item = GymElectronics.model_validate(electronic_item)
+    db_session.add(db_item)
+    db_session.commit()
+    db_session.refresh(db_item)
+    return db_item
 
 
 @router_electronics.get('/electronics/{electro_id}', status_code=status.HTTP_200_OK)
@@ -59,31 +49,42 @@ def get_electronics(electro_item: GymElectronics = Depends(_fetch_item_details))
     return electro_item
 
 
-@router_electronics.put('/electronics/{electro_id}', status_code=status.HTTP_200_OK)
-def put_electronics(electro_id: int,
-                    electronic_item: GymElectronics,
-                    available_items: GymElectronics = Depends(_fetch_item_details)) -> GymElectronics:
+@router_electronics.get('/electronics', status_code=status.HTTP_200_OK)
+def list_electronics(db_session: Session = Depends(get_db_session)) -> Sequence[GymElectronics]:
     """
-    Updates the details of the electronic item as per id given.
-    :param available_items: Object of the class
-    :param electronic_item: all parameters of the electronic item
-    :param electro_id: ID
-    :return: Updated details
+    Fetches all electronic items
+    :return: a list of all electronic items
     """
-    if electronic_item.electro_id != electro_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{electro_id} in path-parameter and body "
-                                                                            f"request({electronic_item.electro_id}) is "
-                                                                            f"not same")
-    index = all_gym_electronics.index(available_items)
-    all_gym_electronics[index] = electronic_item
-    return all_gym_electronics[index]
+    return db_session.exec(select(GymElectronics)).all()
 
 
 @router_electronics.delete('/electronics/{electro_id}', status_code=status.HTTP_204_NO_CONTENT)
-def delete_electronics(electro_item: GymElectronics = Depends(_fetch_item_details)) -> None:
+def delete_electronics(existing_item: GymElectronics = Depends(_fetch_item_details),
+                       db_session: Session = Depends(get_db_session)) -> None:
     """
     Deletes the specific electronic item.
     :return: Nothing
     """
-    all_gym_electronics.remove(electro_item)
+    db_session.delete(existing_item)
+    db_session.commit()
     return
+
+
+@router_electronics.put('/electronics/{electro_id}', status_code=status.HTTP_200_OK)
+def update_electronics(updated_item: GymElectronicsCreate,
+                       existing_item: GymElectronics = Depends(_fetch_item_details),
+                       db_session: Session = Depends(get_db_session)) -> GymElectronics:
+    """
+
+    :param updated_item:
+    :param existing_item:
+    :param db_session:
+    :return:
+    """
+    existing_item.electro_name = updated_item.electro_name
+    existing_item.electro_count = updated_item.electro_count
+    existing_item.electro_description = updated_item.electro_description
+    db_session.add(existing_item)
+    db_session.commit()
+    db_session.refresh(existing_item)
+    return existing_item

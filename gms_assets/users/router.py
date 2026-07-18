@@ -1,117 +1,101 @@
-from __future__ import annotations
+from collections.abc import Sequence
 
-from enum import Enum
+from fastapi import APIRouter, status, Depends, HTTPException, Query
+from sqlmodel import Session, select
 
-from fastapi import APIRouter, status, HTTPException, Query, Depends
-from pydantic import BaseModel, Field
+from database import get_db_session
+from gms_assets.users.models import UserProfile
+from gms_assets.users.schemas import UserProfileCreate, UserProfileResponse
 
 router_users = APIRouter(tags=["Users"])
 
 
-class Gender(str, Enum):
+def _fetch_item_details(user_id: int, db_session: Session = Depends(get_db_session)) -> UserProfile:
     """
-    This class specifies about the gender
-    """
-    male = "male"
-    female = "female"
-
-
-class UserTitle(str, Enum):
-    """
-    User specifications
-    """
-    owner = "owner"
-    trainer = "trainer"
-    member = "member"
-
-
-class UserProfile(BaseModel):
-    name: str = Field(description="Name of the user", max_length=100)
-    email_id: str = Field(description="Email id of the user", max_length=190)
-    age: int = Field(description="Age of the user", gt=14)
-    position: UserTitle = Field(description="Position of the user", examples=["owner", "trainer", "member"],
-                                default="member")
-    user_id: int = Field(description="Unique id of the user", gt=0)
-    gender: Gender = Field(description="Sex of the person, in small letters", examples=["male", "female"])
-    contact_number: str = Field(description="Personal number to contact")
-    emergency_contact_number: str = Field(description="A contact-number other than personal which can be used for "
-                                                      "emergencies")
-    blood_group: str = Field(description="Blood group of the person")
-
-
-class UserProfileResponse(BaseModel):
-    name: str = Field(description="Name of the user", max_length=100)
-    position: UserTitle = Field(description="Position of the user", examples=["owner", "trainer", "member"],
-                                default="member")
-    user_id: int = Field(description="Unique id of the user", gt=0)
-    gender: Gender = Field(description="Sex of the person, in small letters", examples=["male", "female"])
-
-
-all_users: list[UserProfile] = []
-
-
-def _get_item(user_id: int) -> UserProfile:
-    """
-    Fetches the details of the user id.
+    Fetches the details of a single user.
     :param user_id: ID of the user.
-    :return: User details.
+    :param db_session: DB session.
+    :return: Details of the user.
     """
-    for usr in all_users:
-        if usr.user_id == user_id:
-            return usr
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User id:{user_id} not found")
+    item = db_session.get(UserProfile, user_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User id:{user_id} not found")
+    return item
 
 
 @router_users.post("/users", status_code=status.HTTP_201_CREATED)
-def add_user(user: UserProfile) -> UserProfile:
+def add_user(user: UserProfileCreate, db_session: Session = Depends(get_db_session)) -> UserProfile:
     """
-    Adds a new user
-    :param user: Details of the user to be added.
-    :return: Added user details
+    Adds a new user.
+    :param user: Details of the user to add.
+    :param db_session: DB session.
+    :return: The added user, including their DB-assigned id.
     """
-    all_users.append(user)
-    return user
+    db_item = UserProfile.model_validate(user)
+    db_session.add(db_item)
+    db_session.commit()
+    db_session.refresh(db_item)
+    return db_item
 
 
 @router_users.get("/users", response_model=list[UserProfileResponse], status_code=status.HTTP_200_OK)
-def list_users(skip: int = Query(default=0, ge=0), limit: int = Query(default=25, ge=1, le=100)) -> list[UserProfile]:
+def list_users(skip: int = Query(default=0, ge=0),
+               limit: int = Query(default=25, ge=1, le=100),
+               db_session: Session = Depends(get_db_session)) -> Sequence[UserProfile]:
     """
-    List all users
-    :return:
+    Lists users, paginated. Response is restricted to non-sensitive fields.
+    :param skip: Number of users to skip.
+    :param limit: Max number of users to return.
+    :param db_session: DB session.
+    :return: A page of users.
     """
-    return all_users[skip:skip + limit]
+    return db_session.exec(select(UserProfile).offset(skip).limit(limit)).all()
 
 
 @router_users.get("/users/{user_id}", status_code=status.HTTP_200_OK)
-def get_user(user_items: UserProfile = Depends(_get_item)) -> UserProfile:
+def get_user(user_item: UserProfile = Depends(_fetch_item_details)) -> UserProfile:
     """
-    Fetches the details of the user.
+    Fetches the details of a specific user.
+    :param user_item: Resolved user, from the dependency.
     :return: User details.
     """
-    return user_items
-
-
-@router_users.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_items: UserProfile = Depends(_get_item)) -> None:
-    """
-    Deletes the user_id
-    :return: None
-    """
-    all_users.remove(user_items)
+    return user_item
 
 
 @router_users.put("/users/{user_id}", status_code=status.HTTP_200_OK)
-def update_user(user_id: int,
-                user_update: UserProfile,
-                user_details: UserProfile = Depends(_get_item)) -> UserProfile:
+def update_user(updated_user: UserProfileCreate,
+                existing_user: UserProfile = Depends(_fetch_item_details),
+                db_session: Session = Depends(get_db_session)) -> UserProfile:
     """
-    Updates the user details
-    :return: Updated user details
+    Updates the details of an existing user.
+    :param updated_user: New details to apply.
+    :param existing_user: Resolved existing user, from the dependency.
+    :param db_session: DB session.
+    :return: Updated user.
     """
-    if user_id != user_update.user_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{user_id} in path-parameter and body "
-                                                                            f"request({user_update.user_id}) is "
-                                                                            f"not same")
-    index = all_users.index(user_details)
-    all_users[index] = user_update
-    return all_users[index]
+    existing_user.name = updated_user.name
+    existing_user.email_id = updated_user.email_id
+    existing_user.age = updated_user.age
+    existing_user.position = updated_user.position
+    existing_user.gender = updated_user.gender
+    existing_user.contact_number = updated_user.contact_number
+    existing_user.emergency_contact_number = updated_user.emergency_contact_number
+    existing_user.blood_group = updated_user.blood_group
+    db_session.add(existing_user)
+    db_session.commit()
+    db_session.refresh(existing_user)
+    return existing_user
+
+
+@router_users.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(existing_user: UserProfile = Depends(_fetch_item_details),
+                db_session: Session = Depends(get_db_session)) -> None:
+    """
+    Deletes a specific user.
+    :param existing_user: Resolved existing user, from the dependency.
+    :param db_session: DB session.
+    :return: Nothing.
+    """
+    db_session.delete(existing_user)
+    db_session.commit()
+    return

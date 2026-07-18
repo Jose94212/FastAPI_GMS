@@ -1,86 +1,93 @@
-from __future__ import annotations
+from collections.abc import Sequence
 
-from fastapi import APIRouter, status, HTTPException, Depends
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, status, Depends, HTTPException
+from sqlmodel import Session, select
+
+from database import get_db_session
+from gms_assets.furniture.models import FurnitureDetails
+from gms_assets.furniture.schemas import FurnitureDetailsCreate
 
 router_furniture = APIRouter(tags=["Furniture"])
 
 
-class FurnitureDetails(BaseModel):
-    fur_id: int = Field(description="Unique id of the furniture")
-    fur_name: str = Field(description="Name of the furniture", max_length=100, examples=["sofa or office-desk"])
-    fur_description: str | None = Field(description="A short description of the furniture", max_length=200,
-                                        default=None)
-    fur_count: int = Field(description="Number of items", ge=0)
-
-
-all_gym_furniture: list[FurnitureDetails] = []
-
-
-def _get_item(fur_id: int) -> FurnitureDetails:
+def _fetch_item_details(fur_id: int, db_session: Session = Depends(get_db_session)) -> FurnitureDetails:
     """
-    Fetches the details of the specified furniture id.
-    :param fur_id: ID of the furniture.
-    :return: Details of the furniture.
+    Fetches the details of a single furniture item.
+    :param fur_id: ID of the furniture item.
+    :param db_session: DB session.
+    :return: Details of the item.
     """
-    for i in all_gym_furniture:
-        if i.fur_id == fur_id:
-            return i
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Furniture item:{fur_id} not found")
+    item = db_session.get(FurnitureDetails, fur_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Furniture item:{fur_id} not found")
+    return item
 
 
 @router_furniture.post("/furniture", status_code=status.HTTP_201_CREATED)
-def add_furniture(furniture: FurnitureDetails) -> FurnitureDetails:
+def add_furniture(furniture: FurnitureDetailsCreate,
+                  db_session: Session = Depends(get_db_session)) -> FurnitureDetails:
     """
-    This method adds information about the furniture
-    :param furniture: Details of the furniture
-    :return: Added furniture details
+    Adds a new furniture item.
+    :param furniture: Details of the furniture to add.
+    :param db_session: DB session.
+    :return: The added furniture item, including its DB-assigned id.
     """
-    all_gym_furniture.append(furniture)
-    return furniture
+    db_item = FurnitureDetails.model_validate(furniture)
+    db_session.add(db_item)
+    db_session.commit()
+    db_session.refresh(db_item)
+    return db_item
 
 
 @router_furniture.get('/furniture', status_code=status.HTTP_200_OK)
-def list_furniture() -> list[FurnitureDetails]:
+def list_furniture(db_session: Session = Depends(get_db_session)) -> Sequence[FurnitureDetails]:
     """
     Lists all furniture available in the gym.
-    :return: Furniture details
+    :param db_session: DB session.
+    :return: All furniture items.
     """
-    return all_gym_furniture
+    return db_session.exec(select(FurnitureDetails)).all()
 
 
 @router_furniture.get('/furniture/{fur_id}', status_code=status.HTTP_200_OK)
-def get_furniture(fur_items: FurnitureDetails = Depends(_get_item)) -> FurnitureDetails:
+def get_furniture(fur_item: FurnitureDetails = Depends(_fetch_item_details)) -> FurnitureDetails:
     """
-    Fetch the furniture details
-    :return: specific furniture details
+    Fetches the details of a specific furniture item.
+    :param fur_item: Resolved furniture item, from the dependency.
+    :return: Details of the item.
     """
-    return fur_items
-
-
-@router_furniture.delete('/furniture/{fur_id}', status_code=status.HTTP_204_NO_CONTENT)
-def delete_furniture(fur_items: FurnitureDetails = Depends(_get_item)) -> None:
-    """
-    Deletes the furniture details
-    :return:
-    """
-    all_gym_furniture.remove(fur_items)
-    return
+    return fur_item
 
 
 @router_furniture.put('/furniture/{fur_id}', status_code=status.HTTP_200_OK)
-def update_furniture(fur_id: int,
-                     update_furniture_item: FurnitureDetails,
-                     available_furniture: FurnitureDetails = Depends(_get_item)) -> FurnitureDetails:
+def update_furniture(updated_item: FurnitureDetailsCreate,
+                     existing_item: FurnitureDetails = Depends(_fetch_item_details),
+                     db_session: Session = Depends(get_db_session)) -> FurnitureDetails:
     """
-    Updates the furniture details
-    :return: Updated furniture details
+    Updates the details of an existing furniture item.
+    :param updated_item: New details to apply.
+    :param existing_item: Resolved existing item, from the dependency.
+    :param db_session: DB session.
+    :return: Updated furniture item.
     """
-    if update_furniture_item.fur_id != fur_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                            detail=f"{fur_id} in path-parameter and body "
-                                   f"request({update_furniture_item.fur_id}) is not same")
+    existing_item.fur_name = updated_item.fur_name
+    existing_item.fur_description = updated_item.fur_description
+    existing_item.fur_count = updated_item.fur_count
+    db_session.add(existing_item)
+    db_session.commit()
+    db_session.refresh(existing_item)
+    return existing_item
 
-    index = all_gym_furniture.index(available_furniture)
-    all_gym_furniture[index] = update_furniture_item
-    return all_gym_furniture[index]
+
+@router_furniture.delete('/furniture/{fur_id}', status_code=status.HTTP_204_NO_CONTENT)
+def delete_furniture(existing_item: FurnitureDetails = Depends(_fetch_item_details),
+                     db_session: Session = Depends(get_db_session)) -> None:
+    """
+    Deletes a specific furniture item.
+    :param existing_item: Resolved existing item, from the dependency.
+    :param db_session: DB session.
+    :return: Nothing.
+    """
+    db_session.delete(existing_item)
+    db_session.commit()
+    return

@@ -1,88 +1,93 @@
-from __future__ import annotations
+from collections.abc import Sequence
 
-from fastapi import APIRouter, status, HTTPException, Depends
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, status, Depends, HTTPException
+from sqlmodel import Session, select
 
-router_equipment = APIRouter(tags=["Equipments"])
+from database import get_db_session
+from gms_assets.equipment.models import GymEquipment
+from gms_assets.equipment.schemas import GymEquipmentCreate
 
-
-class GymEquipment(BaseModel):
-    equip_id: int = Field(description="Unique id of the equipment")
-    equip_name: str = Field(description="Name of the equipment", max_length=100)
-    equip_description: str | None = Field(description="A short description about the equipment", max_length=1000,
-                                          default=None)
-    equip_count: int = Field(gt=0, description="Number of the items present")
-    equip_lease: bool = Field(default=False, description="Equipment is on lease or not")
+router_equipment = APIRouter(tags=["Equipment"])
 
 
-all_gym_equipments: list[GymEquipment] = []
-
-
-def _get_item(equip_id: int) -> GymEquipment:
+def _fetch_item_details(equip_id: int, db_session: Session = Depends(get_db_session)) -> GymEquipment:
     """
-
-    :param equip_id:
-    :return:
+    Fetches the details of a single gym equipment item.
+    :param equip_id: ID of the equipment item.
+    :param db_session: DB session.
+    :return: Details of the item.
     """
-    for equip in all_gym_equipments:
-        if equip.equip_id == equip_id:
-            return equip
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Gym-equipment item:{equip_id} not found")
+    item = db_session.get(GymEquipment, equip_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Gym-equipment item:{equip_id} not found")
+    return item
 
 
 @router_equipment.post('/gym_equipment', status_code=status.HTTP_201_CREATED)
-def add_equipments(gym_equip: GymEquipment) -> GymEquipment:
+def add_equipment(gym_equip: GymEquipmentCreate, db_session: Session = Depends(get_db_session)) -> GymEquipment:
     """
-    method is to add gym equipments
-    :param gym_equip:
-    :return:
+    Adds a new gym equipment item.
+    :param gym_equip: Details of the equipment to add.
+    :param db_session: DB session.
+    :return: The added equipment item, including its DB-assigned id.
     """
-    all_gym_equipments.append(gym_equip)
-    return gym_equip
+    db_item = GymEquipment.model_validate(gym_equip)
+    db_session.add(db_item)
+    db_session.commit()
+    db_session.refresh(db_item)
+    return db_item
 
 
 @router_equipment.get("/gym_equipment", summary="Lists all gym equipment available", status_code=status.HTTP_200_OK)
-def list_gym_equipment() -> list[GymEquipment]:
+def list_gym_equipment(db_session: Session = Depends(get_db_session)) -> Sequence[GymEquipment]:
     """
-    Fetches all gym equipments details
-    :return: list of all gym equipments
+    Fetches all gym equipment details.
+    :param db_session: DB session.
+    :return: All equipment items.
     """
-    return all_gym_equipments
-
-
-@router_equipment.delete("/gym_equipment/{equip_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_gym_equipment(equip_id_details: GymEquipment = Depends(_get_item)) -> None:
-    """
-    Deletes the specific gym equipment details
-    :return:
-    """
-    all_gym_equipments.remove(equip_id_details)
-
-
-@router_equipment.put('/gym_equipment/{equip_id}', status_code=status.HTTP_200_OK)
-def update_equipment(equip_id: int,
-                     gym_equip: GymEquipment,
-                     available_gym_equip_details: GymEquipment = Depends(_get_item)) -> GymEquipment:
-    """
-    Updates the equipment.
-    :param available_gym_equip_details:
-    :param equip_id: ID of the equipments
-    :param gym_equip:
-    :return: Updated details
-    """
-    if gym_equip.equip_id != equip_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{equip_id} in path-parameter and body "
-                                                                            f"request({gym_equip.equip_id}) is "
-                                                                            f"not same")
-    index = all_gym_equipments.index(available_gym_equip_details)
-    all_gym_equipments[index] = gym_equip
-    return all_gym_equipments[index]
+    return db_session.exec(select(GymEquipment)).all()
 
 
 @router_equipment.get("/gym_equipment/{equip_id}", status_code=status.HTTP_200_OK)
-def get_gym_equipment(gym_equip_id_details: GymEquipment = Depends(_get_item)) -> GymEquipment:
+def get_gym_equipment(equip_item: GymEquipment = Depends(_fetch_item_details)) -> GymEquipment:
     """
-    Fetches the equipment details
-    :return: details of the specific equipment.
+    Fetches the details of a specific gym equipment item.
+    :param equip_item: Resolved equipment item, from the dependency.
+    :return: Details of the item.
     """
-    return gym_equip_id_details
+    return equip_item
+
+
+@router_equipment.put('/gym_equipment/{equip_id}', status_code=status.HTTP_200_OK)
+def update_equipment(updated_item: GymEquipmentCreate,
+                     existing_item: GymEquipment = Depends(_fetch_item_details),
+                     db_session: Session = Depends(get_db_session)) -> GymEquipment:
+    """
+    Updates the details of an existing gym equipment item.
+    :param updated_item: New details to apply.
+    :param existing_item: Resolved existing item, from the dependency.
+    :param db_session: DB session.
+    :return: Updated equipment item.
+    """
+    existing_item.equip_name = updated_item.equip_name
+    existing_item.equip_description = updated_item.equip_description
+    existing_item.equip_count = updated_item.equip_count
+    existing_item.equip_lease = updated_item.equip_lease
+    db_session.add(existing_item)
+    db_session.commit()
+    db_session.refresh(existing_item)
+    return existing_item
+
+
+@router_equipment.delete("/gym_equipment/{equip_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_gym_equipment(existing_item: GymEquipment = Depends(_fetch_item_details),
+                         db_session: Session = Depends(get_db_session)) -> None:
+    """
+    Deletes a specific gym equipment item.
+    :param existing_item: Resolved existing item, from the dependency.
+    :param db_session: DB session.
+    :return: Nothing.
+    """
+    db_session.delete(existing_item)
+    db_session.commit()
+    return
