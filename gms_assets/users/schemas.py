@@ -11,6 +11,7 @@ from __future__ import annotations
 from enum import Enum
 
 from sqlmodel import SQLModel, Field
+from pydantic import EmailStr
 
 
 class Gender(str, Enum):
@@ -35,7 +36,7 @@ class UserProfileCreate(SQLModel):
     Details required for adding a new user. No id here - the DB assigns it.
     """
     name: str = Field(max_length=100)
-    email_id: str = Field(max_length=190)
+    email_id: EmailStr = Field(max_length=190)
     age: int = Field(gt=14)
     position: UserTitle = Field(default=UserTitle.member)
     gender: Gender

@@ -1,9 +1,10 @@
 from collections.abc import Sequence
+from typing import Annotated
 
-from fastapi import APIRouter, status, Depends, HTTPException, Query
-from sqlmodel import Session, select
+from fastapi import APIRouter, status, Depends, HTTPException, Query, Path
+from sqlmodel import select
 
-from database import get_db_session
+from database import SessionDep
 from gms_assets.users.models import UserProfile
 from gms_assets.users.schemas import UserProfileCreate, UserProfileResponse
 
@@ -11,7 +12,8 @@ router_users = APIRouter(tags=["Users"],
                          prefix="/users")
 
 
-def _fetch_item_details(user_id: int, db_session: Session = Depends(get_db_session)) -> UserProfile:
+def _fetch_item_details(user_id: Annotated[int, Path(title="The ID of the user", ge=0)],
+                        db_session: SessionDep) -> UserProfile:
     """
     Fetches the details of a single user.
     :param user_id: ID of the user.
@@ -25,7 +27,7 @@ def _fetch_item_details(user_id: int, db_session: Session = Depends(get_db_sessi
 
 
 @router_users.post("/", status_code=status.HTTP_201_CREATED)
-def add_user(user: UserProfileCreate, db_session: Session = Depends(get_db_session)) -> UserProfile:
+def add_user(user: UserProfileCreate, db_session: SessionDep) -> UserProfile:
     """
     Adds a new user.
     :param user: Details of the user to add.
@@ -40,9 +42,10 @@ def add_user(user: UserProfileCreate, db_session: Session = Depends(get_db_sessi
 
 
 @router_users.get("/", response_model=list[UserProfileResponse], status_code=status.HTTP_200_OK)
-def list_users(skip: int = Query(default=0, ge=0),
+def list_users(db_session: SessionDep,
+               skip: int = Query(default=0, ge=0),
                limit: int = Query(default=25, ge=1, le=100),
-               db_session: Session = Depends(get_db_session)) -> Sequence[UserProfile]:
+               ) -> Sequence[UserProfile]:
     """
     Lists users, paginated. Response is restricted to non-sensitive fields.
     :param skip: Number of users to skip.
@@ -64,9 +67,9 @@ def get_user(user_item: UserProfile = Depends(_fetch_item_details)) -> UserProfi
 
 
 @router_users.put("/{user_id}", status_code=status.HTTP_200_OK)
-def update_user(updated_user: UserProfileCreate,
-                existing_user: UserProfile = Depends(_fetch_item_details),
-                db_session: Session = Depends(get_db_session)) -> UserProfile:
+def update_user(db_session: SessionDep,
+                updated_user: UserProfileCreate,
+                existing_user: UserProfile = Depends(_fetch_item_details)) -> UserProfile:
     """
     Updates the details of an existing user.
     :param updated_user: New details to apply.
@@ -89,8 +92,8 @@ def update_user(updated_user: UserProfileCreate,
 
 
 @router_users.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(existing_user: UserProfile = Depends(_fetch_item_details),
-                db_session: Session = Depends(get_db_session)) -> None:
+def delete_user(db_session: SessionDep,
+                existing_user: UserProfile = Depends(_fetch_item_details)) -> None:
     """
     Deletes a specific user.
     :param existing_user: Resolved existing user, from the dependency.

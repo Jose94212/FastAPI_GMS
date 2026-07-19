@@ -1,9 +1,10 @@
 from collections.abc import Sequence
+from typing import Annotated
 
-from fastapi import APIRouter, status, Depends, HTTPException
-from sqlmodel import Session, select
+from fastapi import APIRouter, status, Depends, HTTPException, Path
+from sqlmodel import select
 
-from database import get_db_session
+from database import SessionDep
 from gms_assets.furniture.models import FurnitureDetails
 from gms_assets.furniture.schemas import FurnitureDetailsCreate
 
@@ -11,7 +12,8 @@ router_furniture = APIRouter(tags=["Furniture"],
                              prefix="/furniture")
 
 
-def _fetch_item_details(fur_id: int, db_session: Session = Depends(get_db_session)) -> FurnitureDetails:
+def _fetch_item_details(fur_id: Annotated[int, Path(title="The ID of the furniture", ge=0)],
+                        db_session: SessionDep) -> FurnitureDetails:
     """
     Fetches the details of a single furniture item.
     :param fur_id: ID of the furniture item.
@@ -25,8 +27,8 @@ def _fetch_item_details(fur_id: int, db_session: Session = Depends(get_db_sessio
 
 
 @router_furniture.post("/", status_code=status.HTTP_201_CREATED)
-def add_furniture(furniture: FurnitureDetailsCreate,
-                  db_session: Session = Depends(get_db_session)) -> FurnitureDetails:
+def add_furniture(db_session: SessionDep,
+                  furniture: FurnitureDetailsCreate) -> FurnitureDetails:
     """
     Adds a new furniture item.
     :param furniture: Details of the furniture to add.
@@ -41,7 +43,7 @@ def add_furniture(furniture: FurnitureDetailsCreate,
 
 
 @router_furniture.get('/', status_code=status.HTTP_200_OK)
-def list_furniture(db_session: Session = Depends(get_db_session)) -> Sequence[FurnitureDetails]:
+def list_furniture(db_session: SessionDep) -> Sequence[FurnitureDetails]:
     """
     Lists all furniture available in the gym.
     :param db_session: DB session.
@@ -61,9 +63,9 @@ def get_furniture(fur_item: FurnitureDetails = Depends(_fetch_item_details)) -> 
 
 
 @router_furniture.put('/{fur_id}', status_code=status.HTTP_200_OK)
-def update_furniture(updated_item: FurnitureDetailsCreate,
-                     existing_item: FurnitureDetails = Depends(_fetch_item_details),
-                     db_session: Session = Depends(get_db_session)) -> FurnitureDetails:
+def update_furniture(db_session: SessionDep,
+                     updated_item: FurnitureDetailsCreate,
+                     existing_item: FurnitureDetails = Depends(_fetch_item_details)) -> FurnitureDetails:
     """
     Updates the details of an existing furniture item.
     :param updated_item: New details to apply.
@@ -81,8 +83,9 @@ def update_furniture(updated_item: FurnitureDetailsCreate,
 
 
 @router_furniture.delete('/{fur_id}', status_code=status.HTTP_204_NO_CONTENT)
-def delete_furniture(existing_item: FurnitureDetails = Depends(_fetch_item_details),
-                     db_session: Session = Depends(get_db_session)) -> None:
+def delete_furniture(db_session: SessionDep,
+                     existing_item: FurnitureDetails = Depends(_fetch_item_details),
+                     ) -> None:
     """
     Deletes a specific furniture item.
     :param existing_item: Resolved existing item, from the dependency.

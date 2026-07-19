@@ -1,9 +1,10 @@
 from collections.abc import Sequence
+from typing import Annotated
 
-from fastapi import APIRouter, status, Depends, HTTPException
-from sqlmodel import Session, select
+from fastapi import APIRouter, status, Depends, HTTPException, Path
+from sqlmodel import select
 
-from database import get_db_session
+from database import SessionDep
 from gms_assets.equipment.models import GymEquipment
 from gms_assets.equipment.schemas import GymEquipmentCreate
 
@@ -11,7 +12,8 @@ router_equipment = APIRouter(tags=["Equipment"],
                              prefix="/gym_equipment")
 
 
-def _fetch_item_details(equip_id: int, db_session: Session = Depends(get_db_session)) -> GymEquipment:
+def _fetch_item_details(equip_id: Annotated[int, Path(title="The ID of gym equipment", ge=0)],
+                        db_session: SessionDep) -> GymEquipment:
     """
     Fetches the details of a single gym equipment item.
     :param equip_id: ID of the equipment item.
@@ -25,7 +27,7 @@ def _fetch_item_details(equip_id: int, db_session: Session = Depends(get_db_sess
 
 
 @router_equipment.post('/', status_code=status.HTTP_201_CREATED)
-def add_equipment(gym_equip: GymEquipmentCreate, db_session: Session = Depends(get_db_session)) -> GymEquipment:
+def add_equipment(gym_equip: GymEquipmentCreate, db_session: SessionDep) -> GymEquipment:
     """
     Adds a new gym equipment item.
     :param gym_equip: Details of the equipment to add.
@@ -40,7 +42,7 @@ def add_equipment(gym_equip: GymEquipmentCreate, db_session: Session = Depends(g
 
 
 @router_equipment.get("/", summary="Lists all gym equipment available", status_code=status.HTTP_200_OK)
-def list_gym_equipment(db_session: Session = Depends(get_db_session)) -> Sequence[GymEquipment]:
+def list_gym_equipment(db_session: SessionDep) -> Sequence[GymEquipment]:
     """
     Fetches all gym equipment details.
     :param db_session: DB session.
@@ -60,9 +62,10 @@ def get_gym_equipment(equip_item: GymEquipment = Depends(_fetch_item_details)) -
 
 
 @router_equipment.put('/{equip_id}', status_code=status.HTTP_200_OK)
-def update_equipment(updated_item: GymEquipmentCreate,
+def update_equipment(db_session: SessionDep,
+                     updated_item: GymEquipmentCreate,
                      existing_item: GymEquipment = Depends(_fetch_item_details),
-                     db_session: Session = Depends(get_db_session)) -> GymEquipment:
+                     ) -> GymEquipment:
     """
     Updates the details of an existing gym equipment item.
     :param updated_item: New details to apply.
@@ -81,8 +84,9 @@ def update_equipment(updated_item: GymEquipmentCreate,
 
 
 @router_equipment.delete("/{equip_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_gym_equipment(existing_item: GymEquipment = Depends(_fetch_item_details),
-                         db_session: Session = Depends(get_db_session)) -> None:
+def delete_gym_equipment(db_session: SessionDep,
+                         existing_item: GymEquipment = Depends(_fetch_item_details),
+                         ) -> None:
     """
     Deletes a specific gym equipment item.
     :param existing_item: Resolved existing item, from the dependency.

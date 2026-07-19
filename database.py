@@ -1,3 +1,6 @@
+from typing import Annotated
+
+from fastapi import Depends
 from sqlmodel import create_engine, Session, SQLModel
 
 engine = create_engine("sqlite:///./gms.db")
@@ -18,3 +21,4 @@ def get_db_session():
         yield db_session
 
 
+SessionDep = Annotated[Session, Depends(get_db_session)]
