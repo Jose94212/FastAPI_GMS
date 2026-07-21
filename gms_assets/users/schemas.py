@@ -44,6 +44,7 @@ class UserProfileCreate(SQLModel):
     emergency_contact_number: str = Field(description="A contact-number other than personal which can be used for "
                                                       "emergencies")
     blood_group: str
+    password: str
 
 
 class UserProfileResponse(SQLModel):

@@ -1,9 +1,12 @@
 from collections.abc import Sequence
 from typing import Annotated
 
+import bcrypt
 from fastapi import APIRouter, status, Depends, HTTPException, Query, Path
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
 
+from auth import create_access_token
 from database import SessionDep
 from gms_assets.users.models import UserProfile
 from gms_assets.users.schemas import UserProfileCreate, UserProfileResponse
@@ -26,7 +29,7 @@ def _fetch_item_details(user_id: Annotated[int, Path(title="The ID of the user",
     return item
 
 
-@router_users.post("/", status_code=status.HTTP_201_CREATED)
+@router_users.post("/", status_code=status.HTTP_201_CREATED, response_model=UserProfileResponse)
 def add_user(user: UserProfileCreate, db_session: SessionDep) -> UserProfile:
     """
     Adds a new user.
@@ -34,6 +37,7 @@ def add_user(user: UserProfileCreate, db_session: SessionDep) -> UserProfile:
     :param db_session: DB session.
     :return: The added user, including their DB-assigned id.
     """
+    user.password = bcrypt.hashpw(user.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
     db_item = UserProfile.model_validate(user)
     db_session.add(db_item)
     db_session.commit()
@@ -44,8 +48,7 @@ def add_user(user: UserProfileCreate, db_session: SessionDep) -> UserProfile:
 @router_users.get("/", response_model=list[UserProfileResponse], status_code=status.HTTP_200_OK)
 def list_users(db_session: SessionDep,
                skip: int = Query(default=0, ge=0),
-               limit: int = Query(default=25, ge=1, le=100),
-               ) -> Sequence[UserProfile]:
+               limit: int = Query(default=25, ge=1, le=100)) -> Sequence[UserProfile]:
     """
     Lists users, paginated. Response is restricted to non-sensitive fields.
     :param skip: Number of users to skip.
@@ -103,3 +106,23 @@ def delete_user(db_session: SessionDep,
     db_session.delete(existing_user)
     db_session.commit()
     return
+
+
+@router_users.post("/token", status_code=status.HTTP_200_OK)
+def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db_session: SessionDep):
+    """
+
+    :param form_data:
+    :param db_session:
+    """
+    user_details = db_session.exec(select(UserProfile).where(UserProfile.email_id == form_data.username)).first()
+    if not user_details:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
+    else:
+        if bcrypt.checkpw(form_data.password.encode("utf-8"), user_details.password.encode("utf-8")):
+            data = {"sub": str(user_details.user_id)}
+            token = create_access_token(data=data)
+            return {"access_token": token,
+                    "token_type": "bearer"}
+        else:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")

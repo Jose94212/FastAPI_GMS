@@ -4,11 +4,13 @@ from typing import Annotated
 from fastapi import APIRouter, status, Depends, HTTPException, Path
 from sqlmodel import select
 
+from auth import get_current_user
 from database import SessionDep
 from gms_assets.electronics.models import GymElectronics
 from gms_assets.electronics.schemas import GymElectronicsCreate
 
 router_electronics = APIRouter(prefix="/electronics",
+                               dependencies=[Depends(get_current_user)],
                                tags=["Electronics"])
 
 

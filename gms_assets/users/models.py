@@ -13,3 +13,4 @@ class UserProfile(UserProfileCreate, table=True):
     DB-table created as per this class.
     """
     user_id: int | None = Field(default=None, primary_key=True)
+
