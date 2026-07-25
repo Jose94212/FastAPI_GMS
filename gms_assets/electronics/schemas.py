@@ -4,7 +4,7 @@ They validate incoming JSON requests, filter outgoing JSON responses,
 and automatically generate your interactive Swagger/OpenAPI Documentation.
 They inherit from Pydantic's BaseModel
 
-NOTE: here we are inherited from SQLMOdel.
+NOTE: here we are inherited from SQLModel.
 Later the classes from this will be inherited to 'models' module.
 This is being done so that DB and schema are in parity else there are chances of unwanted errors.
 """

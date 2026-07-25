@@ -8,7 +8,7 @@ from sqlmodel import Field
 from gms_assets.users.schemas import UserProfileCreate
 
 
-class UserProfile(UserProfileCreate, table=True):
+class UserProfileDB(UserProfileCreate, table=True):
     """
     DB-table created as per this class.
     """

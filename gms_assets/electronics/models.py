@@ -8,7 +8,7 @@ from sqlmodel import Field
 from gms_assets.electronics.schemas import GymElectronicsCreate
 
 
-class GymElectronics(GymElectronicsCreate, table=True):
+class GymElectronicsDB(GymElectronicsCreate, table=True):
     """
     DB-table created as per this class.
     """

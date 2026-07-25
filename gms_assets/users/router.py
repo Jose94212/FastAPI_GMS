@@ -6,9 +6,9 @@ from fastapi import APIRouter, status, Depends, HTTPException, Query, Path
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import select
 
-from auth import create_access_token
+from auth import create_access_token, require_owner
 from database import SessionDep
-from gms_assets.users.models import UserProfile
+from gms_assets.users.models import UserProfileDB
 from gms_assets.users.schemas import UserProfileCreate, UserProfileResponse
 
 router_users = APIRouter(tags=["Users"],
@@ -16,21 +16,21 @@ router_users = APIRouter(tags=["Users"],
 
 
 def _fetch_item_details(user_id: Annotated[int, Path(title="The ID of the user", ge=0)],
-                        db_session: SessionDep) -> UserProfile:
+                        db_session: SessionDep) -> UserProfileDB:
     """
     Fetches the details of a single user.
     :param user_id: ID of the user.
     :param db_session: DB session.
     :return: Details of the user.
     """
-    item = db_session.get(UserProfile, user_id)
+    item = db_session.get(UserProfileDB, user_id)
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User id:{user_id} not found")
     return item
 
 
 @router_users.post("/", status_code=status.HTTP_201_CREATED, response_model=UserProfileResponse)
-def add_user(user: UserProfileCreate, db_session: SessionDep) -> UserProfile:
+def add_user(user: UserProfileCreate, db_session: SessionDep) -> UserProfileDB:
     """
     Adds a new user.
     :param user: Details of the user to add.
@@ -38,7 +38,7 @@ def add_user(user: UserProfileCreate, db_session: SessionDep) -> UserProfile:
     :return: The added user, including their DB-assigned id.
     """
     user.password = bcrypt.hashpw(user.password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-    db_item = UserProfile.model_validate(user)
+    db_item = UserProfileDB.model_validate(user)
     db_session.add(db_item)
     db_session.commit()
     db_session.refresh(db_item)
@@ -48,7 +48,7 @@ def add_user(user: UserProfileCreate, db_session: SessionDep) -> UserProfile:
 @router_users.get("/", response_model=list[UserProfileResponse], status_code=status.HTTP_200_OK)
 def list_users(db_session: SessionDep,
                skip: int = Query(default=0, ge=0),
-               limit: int = Query(default=25, ge=1, le=100)) -> Sequence[UserProfile]:
+               limit: int = Query(default=25, ge=1, le=100)) -> Sequence[UserProfileDB]:
     """
     Lists users, paginated. Response is restricted to non-sensitive fields.
     :param skip: Number of users to skip.
@@ -56,11 +56,11 @@ def list_users(db_session: SessionDep,
     :param db_session: DB session.
     :return: A page of users.
     """
-    return db_session.exec(select(UserProfile).offset(skip).limit(limit)).all()
+    return db_session.exec(select(UserProfileDB).offset(skip).limit(limit)).all()
 
 
 @router_users.get("/{user_id}", status_code=status.HTTP_200_OK)
-def get_user(user_item: UserProfile = Depends(_fetch_item_details)) -> UserProfile:
+def get_user(user_item: UserProfileDB = Depends(_fetch_item_details)) -> UserProfileDB:
     """
     Fetches the details of a specific user.
     :param user_item: Resolved user, from the dependency.
@@ -72,7 +72,7 @@ def get_user(user_item: UserProfile = Depends(_fetch_item_details)) -> UserProfi
 @router_users.put("/{user_id}", status_code=status.HTTP_200_OK)
 def update_user(db_session: SessionDep,
                 updated_user: UserProfileCreate,
-                existing_user: UserProfile = Depends(_fetch_item_details)) -> UserProfile:
+                existing_user: UserProfileDB = Depends(_fetch_item_details)) -> UserProfileDB:
     """
     Updates the details of an existing user.
     :param updated_user: New details to apply.
@@ -96,9 +96,11 @@ def update_user(db_session: SessionDep,
 
 @router_users.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(db_session: SessionDep,
-                existing_user: UserProfile = Depends(_fetch_item_details)) -> None:
+                _: Annotated[UserProfileDB, Depends(require_owner)] = None,
+                existing_user: UserProfileDB = Depends(_fetch_item_details)) -> None:
     """
     Deletes a specific user.
+    :param _:
     :param existing_user: Resolved existing user, from the dependency.
     :param db_session: DB session.
     :return: Nothing.
@@ -115,7 +117,7 @@ def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db_session
     :param form_data:
     :param db_session:
     """
-    user_details = db_session.exec(select(UserProfile).where(UserProfile.email_id == form_data.username)).first()
+    user_details = db_session.exec(select(UserProfileDB).where(UserProfileDB.email_id == form_data.username)).first()
     if not user_details:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
     else:

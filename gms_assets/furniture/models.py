@@ -8,7 +8,7 @@ from sqlmodel import Field
 from gms_assets.furniture.schemas import FurnitureDetailsCreate
 
 
-class FurnitureDetails(FurnitureDetailsCreate, table=True):
+class FurnitureDB(FurnitureDetailsCreate, table=True):
     """
     DB-table created as per this class.
     """
