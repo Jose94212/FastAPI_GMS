@@ -7,8 +7,11 @@ from fastapi.security import OAuth2PasswordBearer
 from starlette import status
 
 from database import SessionDep
-from gms_assets.users.models import UserProfileDB
-from gms_assets.users.schemas import UserTitle
+from gms_assets.members.models import GymMembersDB
+from gms_assets.members.schemas import GymRoles
+
+# from gms_assets.users.models import UserProfileDB
+# from gms_assets.users.schemas import UserTitle
 
 SECRET_KEY = "JOSE"
 ALGORITHM = "HS256"
@@ -30,18 +33,18 @@ def create_access_token(data: dict) -> str:
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/token")
 
 
-def get_current_user(db_session: SessionDep, token: str = Depends(oauth2_scheme)) -> UserProfileDB:
+def get_current_user(db_session: SessionDep,
+                     token: str = Depends(oauth2_scheme)) -> GymMembersDB:
     """
     Fetches the current user details
     :param db_session: DB session
     :param token: Token
     :return: User Profile
     """
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                          detail="Could not validate credentials",
+                                          headers={"WWW-Authenticate": "Bearer"},
+                                          )
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -52,19 +55,19 @@ def get_current_user(db_session: SessionDep, token: str = Depends(oauth2_scheme)
     if user_id is None:
         raise credentials_exception
     else:
-        user_profile = db_session.get(UserProfileDB, int(user_id))
+        user_profile = db_session.get(GymMembersDB, int(user_id))
         if user_profile:
             return user_profile
         else:
             raise credentials_exception
 
 
-def require_owner(current_user: Annotated[UserProfileDB, Depends(get_current_user)]):
+def require_owner(current_user: Annotated[GymMembersDB, Depends(get_current_user)]):
     """
     Checks whether the user is Owner or not
     :param current_user:
     :return:
     """
-    if current_user.position != UserTitle.owner:
+    if current_user.role != GymRoles.owner:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Owner privileges required")
     return current_user

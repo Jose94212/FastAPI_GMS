@@ -8,7 +8,9 @@ from auth import get_current_user, require_owner
 from database import SessionDep
 from gms_assets.electronics.models import GymElectronicsDB
 from gms_assets.electronics.schemas import GymElectronicsCreate
-from gms_assets.users.models import UserProfileDB
+from gms_assets.members.models import GymMembersDB
+
+# from gms_assets.users.models import UserProfileDB
 
 router_electronics = APIRouter(prefix="/electronics",
                                dependencies=[Depends(get_current_user)],
@@ -29,7 +31,7 @@ def _fetch_item_details(electro_id: Annotated[int, Path(title="The ID of gym ele
     return item
 
 
-@router_electronics.post("/", status_code=status.HTTP_201_CREATED)
+@router_electronics.post("", status_code=status.HTTP_201_CREATED)
 def add_electronics(electronic_item: GymElectronicsCreate,
                     db_session: SessionDep) -> GymElectronicsDB:
     """
@@ -55,7 +57,7 @@ def get_electronics(electro_item: GymElectronicsDB = Depends(_fetch_item_details
     return electro_item
 
 
-@router_electronics.get('/', status_code=status.HTTP_200_OK)
+@router_electronics.get("", status_code=status.HTTP_200_OK)
 def list_electronics(db_session: SessionDep) -> Sequence[GymElectronicsDB]:
     """
     Fetches all electronic items
@@ -67,7 +69,7 @@ def list_electronics(db_session: SessionDep) -> Sequence[GymElectronicsDB]:
 @router_electronics.delete('/{electro_id}', status_code=status.HTTP_204_NO_CONTENT)
 def delete_electronics(db_session: SessionDep,
                        existing_item: GymElectronicsDB = Depends(_fetch_item_details),
-                       _: Annotated[UserProfileDB, Depends(require_owner)] = None) -> None:
+                       _: Annotated[GymMembersDB, Depends(require_owner)] = None) -> None:
     """
     Deletes the specific electronic item.
     :return: Nothing

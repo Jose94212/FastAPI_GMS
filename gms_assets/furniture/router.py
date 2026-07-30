@@ -8,7 +8,7 @@ from auth import get_current_user, require_owner
 from database import SessionDep
 from gms_assets.furniture.models import FurnitureDB
 from gms_assets.furniture.schemas import FurnitureDetailsCreate
-from gms_assets.users.models import UserProfileDB
+from gms_assets.members.models import GymMembersDB
 
 router_furniture = APIRouter(tags=["Furniture"],
                              dependencies=[Depends(get_current_user)],
@@ -29,7 +29,7 @@ def _fetch_item_details(fur_id: Annotated[int, Path(title="The ID of the furnitu
     return item
 
 
-@router_furniture.post("/", status_code=status.HTTP_201_CREATED)
+@router_furniture.post("", status_code=status.HTTP_201_CREATED)
 def add_furniture(db_session: SessionDep,
                   furniture: FurnitureDetailsCreate) -> FurnitureDB:
     """
@@ -45,7 +45,7 @@ def add_furniture(db_session: SessionDep,
     return db_item
 
 
-@router_furniture.get('/', status_code=status.HTTP_200_OK)
+@router_furniture.get('', status_code=status.HTTP_200_OK)
 def list_furniture(db_session: SessionDep) -> Sequence[FurnitureDB]:
     """
     Lists all furniture available in the gym.
@@ -88,7 +88,7 @@ def update_furniture(db_session: SessionDep,
 @router_furniture.delete('/{fur_id}', status_code=status.HTTP_204_NO_CONTENT)
 def delete_furniture(db_session: SessionDep,
                      existing_item: FurnitureDB = Depends(_fetch_item_details),
-                     _: Annotated[UserProfileDB, Depends(require_owner)] = None
+                     _: Annotated[GymMembersDB, Depends(require_owner)] = None
                      ) -> None:
     """
     Deletes a specific furniture item.

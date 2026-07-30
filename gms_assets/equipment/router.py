@@ -8,7 +8,7 @@ from auth import get_current_user, require_owner
 from database import SessionDep
 from gms_assets.equipment.models import GymEquipmentDB
 from gms_assets.equipment.schemas import GymEquipmentCreate
-from gms_assets.users.models import UserProfileDB
+from gms_assets.members.models import GymMembersDB
 
 router_equipment = APIRouter(tags=["Equipment"],
                              dependencies=[Depends(get_current_user)],
@@ -29,7 +29,7 @@ def _fetch_item_details(equip_id: Annotated[int, Path(title="The ID of gym equip
     return item
 
 
-@router_equipment.post('/', status_code=status.HTTP_201_CREATED)
+@router_equipment.post("", status_code=status.HTTP_201_CREATED)
 def add_equipment(gym_equip: GymEquipmentCreate, db_session: SessionDep) -> GymEquipmentDB:
     """
     Adds a new gym equipment item.
@@ -44,7 +44,7 @@ def add_equipment(gym_equip: GymEquipmentCreate, db_session: SessionDep) -> GymE
     return db_item
 
 
-@router_equipment.get("/", summary="Lists all gym equipment available", status_code=status.HTTP_200_OK)
+@router_equipment.get("", summary="Lists all gym equipment available", status_code=status.HTTP_200_OK)
 def list_gym_equipment(db_session: SessionDep) -> Sequence[GymEquipmentDB]:
     """
     Fetches all gym equipment details.
@@ -89,7 +89,7 @@ def update_equipment(db_session: SessionDep,
 @router_equipment.delete("/{equip_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_gym_equipment(db_session: SessionDep,
                          existing_item: GymEquipmentDB = Depends(_fetch_item_details),
-                         _: Annotated[UserProfileDB, Depends(require_owner)] = None) -> None:
+                         _: Annotated[GymMembersDB, Depends(require_owner)] = None) -> None:
     """
     Deletes a specific gym equipment item.
     :param _:
