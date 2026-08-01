@@ -10,9 +10,6 @@ from database import SessionDep
 from gms_assets.members.models import GymMembersDB
 from gms_assets.members.schemas import GymRoles
 
-# from gms_assets.users.models import UserProfileDB
-# from gms_assets.users.schemas import UserTitle
-
 SECRET_KEY = "JOSE"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -43,8 +40,7 @@ def get_current_user(db_session: SessionDep,
     """
     credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
                                           detail="Could not validate credentials",
-                                          headers={"WWW-Authenticate": "Bearer"},
-                                          )
+                                          headers={"WWW-Authenticate": "Bearer"})
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])

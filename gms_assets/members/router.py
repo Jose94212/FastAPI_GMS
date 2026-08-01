@@ -7,7 +7,7 @@ from database import SessionDep
 from gms_assets.members.models import GymMembersDB, GymStaffsDB
 from gms_assets.members.schemas import GymMembersCreate, GymMembersUpdate, GymRoles, GymStaffsCreate, GymStaffsUpdate
 
-router_member = APIRouter(tags=["members"],
+router_member = APIRouter(tags=["Members"],
                           prefix="/members")
 
 
