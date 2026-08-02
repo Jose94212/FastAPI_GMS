@@ -5,8 +5,8 @@ Run once from the project root:  python3 seed_data.py
 Inserts directly via the DB session (bypassing the API layer), in dependency order:
   1. Electronics, Furniture, Equipment (no dependencies)
   2. Membership Plans (no dependencies)
-  3. Members (no dependencies)
-  4. Staff (depends on Members existing, via member_id FK)
+  3. Members (no dependencies) - role is member/owner only
+  4. Staff (independent entity for now - no member_id FK yet, own full profile)
   5. Subscriptions (depends on Members + Plans existing, via member_id/plan_id FK)
 """
 from datetime import date, timedelta
@@ -18,10 +18,13 @@ from database import engine, create_db_and_tables
 from gms_assets.electronics.models import GymElectronicsDB
 from gms_assets.furniture.models import FurnitureDB
 from gms_assets.equipment.models import GymEquipmentDB
+from gms_assets.equipment.schemas import GymEquipmentCreate
 from gms_assets.membership_plans.models import GymMembershipPlansDB
 from gms_assets.membership_plans.schemas import PlanNames
-from gms_assets.members.models import GymMembersDB, GymStaffsDB
+from gms_assets.members.models import GymMembersDB
 from gms_assets.members.schemas import Gender, MemberStatus, GymRoles
+from gms_assets.staff.model import GymStaffsDB
+from gms_assets.staff.schemas import GymStaffRoles, GymStaffStatus
 from gms_assets.member_subscriptions.model import GymSubscriptionsDB
 from gms_assets.member_subscriptions.schemas import SubscriptionStatus
 
@@ -51,8 +54,6 @@ def seed():
         # --- 3. Equipment ---
         # GymEquipmentCreate computes equip_cost_total/equip_next_maintenance_date itself via a
         # model_validator, so build via the Create schema first, then hand off to the DB model.
-        from gms_assets.equipment.schemas import GymEquipmentCreate
-
         equipment_data = [
             dict(equip_name="Olympic Barbell Set", equip_count=6, equip_lease=False, equip_cost=250),
             dict(equip_name="Adjustable Dumbbells (5-50 lb)", equip_count=12, equip_lease=False, equip_cost=180),
@@ -76,14 +77,11 @@ def seed():
         for p in plans:
             db_session.refresh(p)
 
-        # --- 5. Members (mix of plain members and staff roles) ---
+        # --- 5. Members ---
+        # GymRoles is now just member/owner - trainer/receptionist/dietitian roles live on
+        # the separate Staff resource (gms_assets.staff), which has no member_id FK yet.
         members_data = [
-            # (f_name, l_name, email, phone, dob, gender, role)
             ("Alex", "Morgan", "alex.morgan@ironpeak.gym", "9000000001", date(1985, 3, 12), Gender.male, GymRoles.owner),
-            ("Sam", "Rivera", "sam.rivera@ironpeak.gym", "9000000002", date(1990, 7, 22), Gender.male, GymRoles.trainer),
-            ("Jordan", "Lee", "jordan.lee@ironpeak.gym", "9000000003", date(1992, 11, 5), Gender.others, GymRoles.trainer),
-            ("Taylor", "Brooks", "taylor.brooks@ironpeak.gym", "9000000004", date(1995, 2, 18), Gender.female, GymRoles.receptionist),
-            ("Casey", "Kim", "casey.kim@ironpeak.gym", "9000000005", date(1988, 9, 30), Gender.female, GymRoles.dietitian),
             ("Morgan", "Ellis", "morgan.ellis@gmail.com", "9000000006", date(1998, 5, 14), Gender.male, GymRoles.member),
             ("Riley", "Chen", "riley.chen@gmail.com", "9000000007", date(2000, 1, 9), Gender.female, GymRoles.member),
             ("Jamie", "Patel", "jamie.patel@gmail.com", "9000000008", date(1996, 6, 25), Gender.others, GymRoles.member),
@@ -104,24 +102,39 @@ def seed():
         for m in members:
             db_session.refresh(m)
 
-        # --- 6. Staff rows for every member whose role isn't plain "member" ---
-        staff_salaries = {
-            GymRoles.owner: 80000,
-            GymRoles.trainer: 35000,
-            GymRoles.receptionist: 22000,
-            GymRoles.dietitian: 40000,
-        }
-        staff_rows = []
-        for m in members:
-            if m.role != GymRoles.member:
-                staff_rows.append(GymStaffsDB(
-                    member_id=m.member_id,
-                    salary=staff_salaries[m.role],
-                    hire_date=m.joining_date,
-                ))
+        # --- 6. Staff ---
+        # Independent profiles for now (no member_id FK - deliberately deferred).
+        staff_data = [
+            dict(f_name="Sam", l_name="Rivera", email="sam.rivera@ironpeak.gym", phone="9000000002",
+                 dob=date(1990, 7, 22), gender=Gender.male, emergency_contact_name="Emergency Contact",
+                 emergency_contact_number="9111111111", blood_group="B+",
+                 role=GymStaffRoles.staff_trainer, salary=35000, hired_date=date(2023, 1, 15),
+                 status=GymStaffStatus.active),
+            dict(f_name="Jordan", l_name="Lee", email="jordan.lee@ironpeak.gym", phone="9000000003",
+                 dob=date(1992, 11, 5), gender=Gender.others, emergency_contact_name="Emergency Contact",
+                 emergency_contact_number="9111111111", blood_group="A-",
+                 role=GymStaffRoles.staff_trainer, salary=36000, hired_date=date(2023, 6, 1),
+                 status=GymStaffStatus.active),
+            dict(f_name="Taylor", l_name="Brooks", email="taylor.brooks@ironpeak.gym", phone="9000000004",
+                 dob=date(1995, 2, 18), gender=Gender.female, emergency_contact_name="Emergency Contact",
+                 emergency_contact_number="9111111111", blood_group="O-",
+                 role=GymStaffRoles.staff_receptionist, salary=22000, hired_date=date(2024, 3, 10),
+                 status=GymStaffStatus.active),
+            dict(f_name="Casey", l_name="Kim", email="casey.kim@ironpeak.gym", phone="9000000005",
+                 dob=date(1988, 9, 30), gender=Gender.female, emergency_contact_name="Emergency Contact",
+                 emergency_contact_number="9111111111", blood_group="AB+",
+                 role=GymStaffRoles.staff_dietitian, salary=40000, hired_date=date(2022, 11, 20),
+                 status=GymStaffStatus.active),
+            dict(f_name="Morgan", l_name="Diaz", email="morgan.diaz@ironpeak.gym", phone="9000000011",
+                 dob=date(1991, 8, 4), gender=Gender.male, emergency_contact_name="Emergency Contact",
+                 emergency_contact_number="9111111111", blood_group="B-",
+                 role=GymStaffRoles.staff_trainer, salary=34000, hired_date=date(2021, 4, 12),
+                 status=GymStaffStatus.resigned),
+        ]
+        staff_rows = [GymStaffsDB(**data) for data in staff_data]
         db_session.add_all(staff_rows)
 
-        # --- 7. Subscriptions for the plain-member subset, across different plans/statuses ---
+        # --- 7. Subscriptions for members, across different plans/statuses ---
         plain_members = [m for m in members if m.role == GymRoles.member]
         subscriptions = [
             GymSubscriptionsDB(member_id=plain_members[0].member_id, plan_id=plans[0].plan_id,

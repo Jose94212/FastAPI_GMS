@@ -9,6 +9,7 @@ from gms_assets.equipment.router import router_equipment
 from gms_assets.member_subscriptions.router import router_subscriptions
 from gms_assets.members.router import router_member
 from gms_assets.membership_plans.router import router_plans
+from gms_assets.staff.router import router_staff
 
 
 @asynccontextmanager
@@ -29,6 +30,7 @@ gms.include_router(router_furniture)
 gms.include_router(router_member)
 gms.include_router(router_plans)
 gms.include_router(router_subscriptions)
+gms.include_router(router_staff)
 
 
 @gms.get("/")
