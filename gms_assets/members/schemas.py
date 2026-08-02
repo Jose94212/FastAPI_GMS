@@ -30,16 +30,10 @@ class GymRoles(str, Enum):
     Gym roles
     """
     member = "member"
-    trainer = "trainer"
-    receptionist = "receptionist"
-    dietitian = "dietitian"
     owner = "owner"
 
 
-class GymMembersCreate(SQLModel):
-    """
-    Member details
-    """
+class GymMemberStaffCommonDetails(SQLModel):
     f_name: str = Field(max_length=50)
     l_name: str = Field(max_length=50)
     email: EmailStr = Field(max_length=100, unique=True)
@@ -48,29 +42,26 @@ class GymMembersCreate(SQLModel):
     gender: Gender = Field(description="Format: male/female/others")
     emergency_contact_name: str = Field(max_length=50)
     emergency_contact_number: str = Field(max_length=10)
+    blood_group: str = Field(description="Blood group of the member")
+
+
+class GymMembersCreate(GymMemberStaffCommonDetails):
     joining_date: date = Field(default_factory=date.today,
                                description="Format: YYYY-MM-DD. Defaults to today's date if left blank.")
-    member_status: MemberStatus = Field(default=MemberStatus.active)
-    blood_group: str = Field(description="Blood group of the member")
     role: GymRoles | None = Field(default=GymRoles.member)
+    member_status: MemberStatus | None = Field(default=MemberStatus.active)
 
 
-class GymStaffsCreate(GymMembersCreate):
+class GymMembersListResponse(SQLModel):
     """
-    Staff details
-    """
-    hired_date: date | None = None
-    salary: int | None = None
 
-    @model_validator(mode="after")
-    def check_staff_fields(self):
-        """
-        Validation for role field
-        :return:
-        """
-        if self.role != GymRoles.member and (self.salary is None or self.hired_date is None):
-            raise ValueError("salary and hired_date are required when role is not 'member'")
-        return self
+    """
+    f_name: str = Field(max_length=50)
+    l_name: str = Field(max_length=50)
+    email: EmailStr = Field(max_length=100, unique=True)
+    role: GymRoles | None = Field(default=GymRoles.member)
+    gender: Gender
+    joining_date: date
 
 
 class GymMembersUpdate(SQLModel):
@@ -89,8 +80,3 @@ class GymMembersUpdate(SQLModel):
     member_status: MemberStatus | None = None
     blood_group: str | None = None
     role: GymRoles | None = Field(default=GymRoles.member)
-
-
-class GymStaffsUpdate(GymMembersUpdate):
-    salary: int | None = None
-    hired_date: date | None = None

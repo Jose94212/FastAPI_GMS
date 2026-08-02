@@ -4,8 +4,10 @@ from fastapi import APIRouter, status, Path, HTTPException, Depends
 from sqlmodel import select
 
 from database import SessionDep
-from gms_assets.members.models import GymMembersDB, GymStaffsDB
-from gms_assets.members.schemas import GymMembersCreate, GymMembersUpdate, GymRoles, GymStaffsCreate, GymStaffsUpdate
+from gms_assets.members.models import GymMembersDB
+from gms_assets.members.schemas import GymMembersUpdate, GymRoles, GymMembersListResponse
+from gms_assets.staff.model import GymStaffsDB
+from gms_assets.staff.schemas import GymStaffsCreate
 
 router_member = APIRouter(tags=["Members"],
                           prefix="/members")
@@ -45,7 +47,7 @@ def add_member(member: GymStaffsCreate, db_session: SessionDep) -> GymMembersDB:
     return db_item
 
 
-@router_member.get("", status_code=status.HTTP_200_OK)
+@router_member.get("", response_model=list[GymMembersListResponse], status_code=status.HTTP_200_OK)
 def list_members(db_session: SessionDep):
     """
     List all members.
@@ -95,28 +97,3 @@ def update_member(update_member_data: GymMembersUpdate,
     db_session.commit()
     db_session.refresh(existing_member_data)
     return existing_member_data
-
-
-@router_member.patch("/{staff_id}", status_code=status.HTTP_200_OK)
-def update_staff(updated_staff_details: GymStaffsUpdate,
-                 db_session: SessionDep,
-                 existing_staff: GymStaffsDB = Depends(_fetch_member_details)):
-    """
-    Updates an existing staff record with partial data.
-
-    Args:
-        updated_staff_details: Fields to change (unset fields are left alone).
-        db_session: DB session.
-        existing_staff: The staff row resolved from the path id.
-
-    Returns:
-        The updated staff record.
-    """
-    updates = updated_staff_details.model_dump(exclude_unset=True)  # # converts to dict
-
-    for k, v in updates.items():
-        setattr(existing_staff, k, v)
-    db_session.add(existing_staff)
-    db_session.commit()
-    db_session.refresh(existing_staff)
-    return existing_staff
