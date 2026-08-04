@@ -4,6 +4,8 @@ Classes created in this will be used for creating tables with respective columns
 """
 from __future__ import annotations
 
+from typing import Optional
+
 from sqlmodel import Field
 from gms_assets.electronics.schemas import GymElectronicsCreate
 
@@ -12,4 +14,4 @@ class GymElectronicsDB(GymElectronicsCreate, table=True):
     """
     DB-table created as per this class.
     """
-    electro_id: int | None = Field(default=None, primary_key=True)
+    electro_id: Optional[int] = Field(default=None, primary_key=True)

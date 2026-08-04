@@ -79,7 +79,8 @@ def delete_staff(db_session: SessionDep,
     Returns:
 
     """
-    db_session.delete(staff_id)
+    member = db_session.get(GymMembersDB, staff_id.member_id)
+    db_session.delete(member)  # cascades to the staff row and all subscriptions
     db_session.commit()
     return
 

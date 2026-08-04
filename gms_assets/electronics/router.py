@@ -10,7 +10,6 @@ from gms_assets.electronics.models import GymElectronicsDB
 from gms_assets.electronics.schemas import GymElectronicsCreate
 from gms_assets.members.models import GymMembersDB
 
-# from gms_assets.users.models import UserProfileDB
 
 router_electronics = APIRouter(prefix="/electronics",
                                dependencies=[Depends(get_current_user)],
