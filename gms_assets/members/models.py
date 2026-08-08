@@ -3,6 +3,7 @@ from typing import Optional, List
 
 from sqlmodel import Field, Relationship
 
+from gms_assets.locker.models import GymLockerDB
 from gms_assets.member_subscriptions.model import GymSubscriptionsDB
 from gms_assets.members.schemas import GymMembersCreate
 from gms_assets.staff.model import GymStaffsDB
@@ -19,4 +20,5 @@ class GymMembersDB(GymMembersCreate, table=True):
 
     staff: Optional["GymStaffsDB"] = Relationship(back_populates="member", cascade_delete=True)
     subscriptions: List["GymSubscriptionsDB"] = Relationship(back_populates="member", cascade_delete=True)
+    locker: Optional["GymLockerDB"] = Relationship(back_populates="member", cascade_delete=True)
 

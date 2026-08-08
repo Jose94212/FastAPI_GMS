@@ -6,6 +6,7 @@ from database import create_db_and_tables
 from gms_assets.electronics.router import router_electronics
 from gms_assets.furniture.router import router_furniture
 from gms_assets.equipment.router import router_equipment
+from gms_assets.locker.router import router_locker
 from gms_assets.member_subscriptions.router import router_subscriptions
 from gms_assets.members.router import router_member
 from gms_assets.membership_plans.router import router_plans
@@ -31,6 +32,7 @@ gms.include_router(router_member)
 gms.include_router(router_plans)
 gms.include_router(router_subscriptions)
 gms.include_router(router_staff)
+gms.include_router(router_locker)
 
 
 @gms.get("/")

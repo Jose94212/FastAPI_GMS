@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from enum import Enum
 
-from pydantic import EmailStr, model_validator
+from pydantic import EmailStr
 from sqlmodel import SQLModel, Field
 
 

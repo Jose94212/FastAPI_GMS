@@ -5,9 +5,7 @@ from sqlmodel import select
 
 from database import SessionDep
 from gms_assets.members.models import GymMembersDB
-from gms_assets.members.schemas import GymMembersUpdate, GymRoles, GymMembersListResponse
-from gms_assets.staff.model import GymStaffsDB
-from gms_assets.staff.schemas import GymStaffsCreate
+from gms_assets.members.schemas import GymMembersCreate, GymMembersUpdate, GymMembersListResponse
 
 router_member = APIRouter(tags=["Members"],
                           prefix="/members")
@@ -28,9 +26,10 @@ def _fetch_member_details(member_id: Annotated[int, Path(title="The ID of the me
 
 
 @router_member.post("", status_code=status.HTTP_201_CREATED)
-def add_member(member: GymStaffsCreate, db_session: SessionDep) -> GymMembersDB:
+def add_member(member: GymMembersCreate, db_session: SessionDep) -> GymMembersDB:
     """
-
+    Adds a plain member. To add staff (which also creates the linked member row),
+    use POST /staff instead.
     :param db_session:
     :param member:
     """
@@ -38,12 +37,6 @@ def add_member(member: GymStaffsCreate, db_session: SessionDep) -> GymMembersDB:
     db_session.add(db_item)
     db_session.commit()
     db_session.refresh(db_item)
-
-    if member.role != GymRoles.member:
-        staff_item = GymStaffsDB(member_id=db_item.member_id, salary=member.salary, hire_date=member.hired_date)
-        db_session.add(staff_item)
-        db_session.commit()
-        db_session.refresh(db_item)
     return db_item
 
 
