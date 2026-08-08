@@ -1,3 +1,8 @@
+"""
+Schemas for the Staff resource. Every staff member is also a Member - GymStaffsCreate
+builds on GymMemberStaffCommonDetails (shared with gms_assets.members.schemas) so the
+personal-details fields are defined exactly once, not duplicated.
+"""
 from __future__ import annotations
 
 from datetime import date
@@ -11,7 +16,7 @@ from gms_assets.members.schemas import GymMemberStaffCommonDetails, Gender
 
 class GymStaffRoles(str, Enum):
     """
-
+    Job role of a staff member.
     """
     staff_trainer = "trainer"
     staff_receptionist = "receptionist"
@@ -20,7 +25,7 @@ class GymStaffRoles(str, Enum):
 
 class GymStaffStatus(str, Enum):
     """
-
+    Employment status of a staff member.
     """
     active = "active"
     hold = "hold"
@@ -29,7 +34,9 @@ class GymStaffStatus(str, Enum):
 
 class GymStaffsCreate(GymMemberStaffCommonDetails):
     """
-    Staff details
+    Staff details. Note: no password field here - GymStaffsDB inherits directly from this
+    class, and a staff row's login credentials live only on its linked Member row, not
+    duplicated onto the staff table. See GymStaffsCreateRequest for the actual POST /staff body.
     """
     hired_date: date | None = Field(default_factory=date.today)
     salary: int | None = Field(default=10000)
@@ -37,9 +44,18 @@ class GymStaffsCreate(GymMemberStaffCommonDetails):
     status: GymStaffStatus | None = Field(default=GymStaffStatus.active)
 
 
+class GymStaffsCreateRequest(GymStaffsCreate):
+    """
+    Request body for POST /staff. Adds the plain-text login password on top of
+    GymStaffsCreate, without it becoming a column on GymStaffsDB.
+    """
+    password: str = Field(min_length=6, description="Plain-text login password (hashed before storage).")
+
+
 class GymStaffsUpdate(SQLModel):
     """
-
+    Updates the details of a staff record. All fields optional/None-default so
+    PATCH can send only the fields being changed.
     """
     f_name: str | None = Field(max_length=50, default=None)
     l_name: str | None = Field(max_length=50, default=None)

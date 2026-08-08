@@ -1,3 +1,8 @@
+"""
+Application entry point. Wires together every resource router, configures logging,
+and creates the FastAPI app. Run with: uvicorn main:gms --reload
+"""
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -12,12 +17,18 @@ from gms_assets.members.router import router_member
 from gms_assets.membership_plans.router import router_plans
 from gms_assets.staff.router import router_staff
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-
-    :param app:
+    Startup/shutdown hook for the app. Creates all DB tables before the app
+    starts serving requests; nothing runs on shutdown.
+    :param app: The FastAPI app instance (unused, required by the lifespan signature).
     """
     create_db_and_tables()
     yield

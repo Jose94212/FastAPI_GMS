@@ -1,3 +1,8 @@
+"""
+Endpoints for the Gym Equipment resource (weights, cardio machines, etc).
+All routes require a logged-in member; delete additionally requires the owner role.
+"""
+import logging
 from collections.abc import Sequence
 from typing import Annotated
 
@@ -9,6 +14,8 @@ from database import SessionDep
 from gms_assets.equipment.models import GymEquipmentDB
 from gms_assets.equipment.schemas import GymEquipmentCreate
 from gms_assets.members.models import GymMembersDB
+
+logger = logging.getLogger(__name__)
 
 router_equipment = APIRouter(tags=["Equipment"],
                              dependencies=[Depends(get_current_user)],
@@ -25,6 +32,7 @@ def _fetch_item_details(equip_id: Annotated[int, Path(title="The ID of gym equip
     """
     item = db_session.get(GymEquipmentDB, equip_id)
     if item is None:
+        logger.warning(f"Gym-equipment item not found: {equip_id}")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Gym-equipment item:{equip_id} not found")
     return item
 
@@ -41,6 +49,7 @@ def add_equipment(gym_equip: GymEquipmentCreate, db_session: SessionDep) -> GymE
     db_session.add(db_item)
     db_session.commit()
     db_session.refresh(db_item)
+    logger.info(f"Gym-equipment item created: {db_item.equip_id}")
     return db_item
 
 
@@ -83,6 +92,7 @@ def update_equipment(db_session: SessionDep,
     db_session.add(existing_item)
     db_session.commit()
     db_session.refresh(existing_item)
+    logger.info(f"Gym-equipment item updated: {existing_item.equip_id}")
     return existing_item
 
 
@@ -97,6 +107,7 @@ def delete_gym_equipment(db_session: SessionDep,
     :param db_session: DB session.
     :return: Nothing.
     """
+    logger.info(f"Gym-equipment item deleted: {existing_item.equip_id}")
     db_session.delete(existing_item)
     db_session.commit()
     return

@@ -1,3 +1,7 @@
+"""
+Schemas for the Locker resource. A locker must always be allocated to exactly a
+member or a staff member (or both, via update) - never neither.
+"""
 from __future__ import annotations
 
 from enum import Enum

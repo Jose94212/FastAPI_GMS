@@ -16,12 +16,18 @@ from sqlmodel import SQLModel, Field
 
 
 class _GymEquipCategory(str, Enum):
+    """
+    Broad category an equipment item belongs to.
+    """
     free_weights = "free weight"
     cardio = "cardio"
     strength = "strength"
 
 
 class _GymEquipStatus(str, Enum):
+    """
+    Operational status of an equipment item.
+    """
     operational = "operational"
     under_repair = "under repair"
     retired = "retired"
@@ -45,7 +51,8 @@ class GymEquipmentCreate(SQLModel):
     @model_validator(mode="after")
     def compute_values(self):
         """
-
+        Fills in derived fields left blank by the caller: defaults the next-maintenance
+        date to one year after purchase, and the total cost to count * unit cost.
         """
         if not self.equip_next_maintenance_date:
             self.equip_next_maintenance_date = self.equip_purchase_date + timedelta(days=365)

@@ -1,3 +1,7 @@
+"""
+DB model for the Members resource - the central entity everything else (Staff,
+Subscriptions, Locker) links back to via member_id.
+"""
 from datetime import date
 from typing import Optional, List
 
@@ -11,10 +15,10 @@ from gms_assets.staff.model import GymStaffsDB
 
 class GymMembersDB(GymMembersCreate, table=True):
     """
-    This class creates the database
+    DB-table created as per this class. Every relationship here has cascade_delete=True:
+    deleting a member also deletes their linked staff row, subscriptions, and locker.
     """
     member_id: Optional[int] = Field(default=None, primary_key=True)
-    password: int = Field(default=100)
     created_date: date = Field(default_factory=date.today)
     updated_date: date = Field(default_factory=date.today)
 

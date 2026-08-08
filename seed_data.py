@@ -6,14 +6,18 @@ Inserts directly via the DB session (bypassing the API layer), in dependency ord
   1. Electronics, Furniture, Equipment (no dependencies)
   2. Membership Plans (no dependencies)
   3. Members (no dependencies) - role is member/owner only
-  4. Staff (independent entity for now - no member_id FK yet, own full profile)
+  4. Staff - each staff row also gets its own linked Member row (member_id FK),
+     mirroring add_staff's create-both-rows pattern.
   5. Subscriptions (depends on Members + Plans existing, via member_id/plan_id FK)
 """
 from datetime import date, timedelta
 
 from sqlmodel import Session
 
+from auth import hash_password
 from database import engine, create_db_and_tables
+
+SEED_PASSWORD = "password123"  # every seeded member/staff logs in with this
 
 from gms_assets.electronics.models import GymElectronicsDB
 from gms_assets.furniture.models import FurnitureDB
@@ -30,7 +34,13 @@ from gms_assets.member_subscriptions.schemas import SubscriptionStatus
 
 
 def seed():
+    """
+    Populates gms.db with realistic sample data across every resource, in FK-dependency
+    order (see module docstring). Safe to re-run against a fresh/empty DB; not idempotent
+    against an already-populated one (will raise on duplicate unique emails).
+    """
     create_db_and_tables()
+    seed_password_hash = hash_password(SEED_PASSWORD)  # hash once, reuse for every seeded member/staff
 
     with Session(engine) as db_session:
         # --- 1. Electronics ---
@@ -95,6 +105,7 @@ def seed():
                 f_name=f_name, l_name=l_name, email=email, phone=phone, dob=dob, gender=gender,
                 emergency_contact_name="Emergency Contact", emergency_contact_number="9111111111",
                 blood_group="O+", role=role, member_status=MemberStatus.active,
+                password=seed_password_hash,
             )
             members.append(m)
         db_session.add_all(members)
@@ -103,7 +114,8 @@ def seed():
             db_session.refresh(m)
 
         # --- 6. Staff ---
-        # Independent profiles for now (no member_id FK - deliberately deferred).
+        # Each staff row needs a linked Member row (member_id FK), same as add_staff in the router:
+        # create the Member first, flush to get its id, then create the Staff row pointing at it.
         staff_data = [
             dict(f_name="Sam", l_name="Rivera", email="sam.rivera@ironpeak.gym", phone="9000000002",
                  dob=date(1990, 7, 22), gender=Gender.male, emergency_contact_name="Emergency Contact",
@@ -131,7 +143,19 @@ def seed():
                  role=GymStaffRoles.staff_trainer, salary=34000, hired_date=date(2021, 4, 12),
                  status=GymStaffStatus.resigned),
         ]
-        staff_rows = [GymStaffsDB(**data) for data in staff_data]
+        staff_common_fields = (
+            "f_name", "l_name", "email", "phone", "dob", "gender",
+            "emergency_contact_name", "emergency_contact_number", "blood_group",
+        )
+        staff_rows = []
+        for data in staff_data:
+            common = {k: v for k, v in data.items() if k in staff_common_fields}
+            staff_member = GymMembersDB(**common, role=GymRoles.member, member_status=MemberStatus.active,
+                                        password=seed_password_hash)
+            db_session.add(staff_member)
+            db_session.flush()  # assigns staff_member.member_id, same transaction
+
+            staff_rows.append(GymStaffsDB(**data, member_id=staff_member.member_id))
         db_session.add_all(staff_rows)
 
         # --- 7. Subscriptions for members, across different plans/statuses ---

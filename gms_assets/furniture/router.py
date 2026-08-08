@@ -1,3 +1,8 @@
+"""
+Endpoints for the Furniture resource (gym-owned furniture inventory).
+All routes require a logged-in member; delete additionally requires the owner role.
+"""
+import logging
 from collections.abc import Sequence
 from typing import Annotated
 
@@ -9,6 +14,8 @@ from database import SessionDep
 from gms_assets.furniture.models import FurnitureDB
 from gms_assets.furniture.schemas import FurnitureDetailsCreate
 from gms_assets.members.models import GymMembersDB
+
+logger = logging.getLogger(__name__)
 
 router_furniture = APIRouter(tags=["Furniture"],
                              dependencies=[Depends(get_current_user)],
@@ -25,6 +32,7 @@ def _fetch_item_details(fur_id: Annotated[int, Path(title="The ID of the furnitu
     """
     item = db_session.get(FurnitureDB, fur_id)
     if item is None:
+        logger.warning(f"Furniture item not found: {fur_id}")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Furniture item:{fur_id} not found")
     return item
 
@@ -42,6 +50,7 @@ def add_furniture(db_session: SessionDep,
     db_session.add(db_item)
     db_session.commit()
     db_session.refresh(db_item)
+    logger.info(f"Furniture item created: {db_item.fur_id}")
     return db_item
 
 
@@ -82,6 +91,7 @@ def update_furniture(db_session: SessionDep,
     db_session.add(existing_item)
     db_session.commit()
     db_session.refresh(existing_item)
+    logger.info(f"Furniture item updated: {existing_item.fur_id}")
     return existing_item
 
 
@@ -97,6 +107,7 @@ def delete_furniture(db_session: SessionDep,
     :param db_session: DB session.
     :return: Nothing.
     """
+    logger.info(f"Furniture item deleted: {existing_item.fur_id}")
     db_session.delete(existing_item)
     db_session.commit()
     return

@@ -1,3 +1,6 @@
+"""
+DB model for the Staff resource.
+"""
 from typing import TYPE_CHECKING, Optional
 
 from sqlmodel import Field, Relationship
@@ -11,7 +14,9 @@ if TYPE_CHECKING:
 
 class GymStaffsDB(GymStaffsCreate, table=True):
     """
-
+    DB-table created as per this class. member_id is unique - one member can have at
+    most one linked staff row. cascade_delete on the locker relationship means a staff
+    member's assigned locker is deleted along with them.
     """
     staff_id: Optional[int] = Field(default=None, primary_key=True)
     member_id: int = Field(foreign_key="gymmembersdb.member_id", unique=True)

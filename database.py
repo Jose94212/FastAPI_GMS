@@ -1,3 +1,6 @@
+"""
+Database engine and session setup, shared by every resource in the app.
+"""
 from typing import Annotated
 
 from fastapi import Depends
@@ -8,7 +11,9 @@ engine = create_engine("sqlite:///./gms.db")
 
 def create_db_and_tables():
     """
-
+    Creates every table registered on SQLModel's metadata (i.e. every imported
+    *DB model) if it doesn't already exist. Called once at app startup, in main.py's
+    lifespan handler.
     """
     SQLModel.metadata.create_all(engine)
 

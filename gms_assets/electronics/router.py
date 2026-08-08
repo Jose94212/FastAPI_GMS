@@ -1,3 +1,8 @@
+"""
+Endpoints for the Electronics resource (gym-owned electronics inventory).
+All routes require a logged-in member; delete additionally requires the owner role.
+"""
+import logging
 from collections.abc import Sequence
 from typing import Annotated
 
@@ -10,6 +15,7 @@ from gms_assets.electronics.models import GymElectronicsDB
 from gms_assets.electronics.schemas import GymElectronicsCreate
 from gms_assets.members.models import GymMembersDB
 
+logger = logging.getLogger(__name__)
 
 router_electronics = APIRouter(prefix="/electronics",
                                dependencies=[Depends(get_current_user)],
@@ -26,6 +32,7 @@ def _fetch_item_details(electro_id: Annotated[int, Path(title="The ID of gym ele
     """
     item = db_session.get(GymElectronicsDB, electro_id)
     if item is None:
+        logger.warning(f"Electronics item not found: {electro_id}")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Electronics item:{electro_id} not found")
     return item
 
@@ -43,6 +50,7 @@ def add_electronics(electronic_item: GymElectronicsCreate,
     db_session.add(db_item)
     db_session.commit()
     db_session.refresh(db_item)
+    logger.info(f"Electronics item created: {db_item.electro_id}")
     return db_item
 
 
@@ -73,6 +81,7 @@ def delete_electronics(db_session: SessionDep,
     Deletes the specific electronic item.
     :return: Nothing
     """
+    logger.info(f"Electronics item deleted: {existing_item.electro_id}")
     db_session.delete(existing_item)
     db_session.commit()
     return
@@ -84,11 +93,11 @@ def update_electronics(db_session: SessionDep,
                        existing_item: GymElectronicsDB = Depends(_fetch_item_details),
                        ) -> GymElectronicsDB:
     """
-
-    :param updated_item:
-    :param existing_item:
-    :param db_session:
-    :return:
+    Replaces the details of an existing electronic item (full replacement - all fields required).
+    :param updated_item: New details to apply.
+    :param existing_item: Resolved existing item, from the dependency.
+    :param db_session: DB session.
+    :return: Updated electronics item.
     """
     existing_item.electro_name = updated_item.electro_name
     existing_item.electro_count = updated_item.electro_count
@@ -96,4 +105,5 @@ def update_electronics(db_session: SessionDep,
     db_session.add(existing_item)
     db_session.commit()
     db_session.refresh(existing_item)
+    logger.info(f"Electronics item updated: {existing_item.electro_id}")
     return existing_item

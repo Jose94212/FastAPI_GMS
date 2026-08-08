@@ -1,3 +1,7 @@
+"""
+Endpoints for the Membership Plans resource. No auth dependency on these routes yet.
+"""
+import logging
 from collections.abc import Sequence
 from typing import Annotated
 
@@ -7,6 +11,8 @@ from sqlmodel import select
 from database import SessionDep
 from gms_assets.membership_plans.models import GymMembershipPlansDB
 from gms_assets.membership_plans.schemas import GymMembershipPlansCreate
+
+logger = logging.getLogger(__name__)
 
 router_plans = APIRouter(tags=["Plans"],
                          prefix="/plans")
@@ -22,6 +28,7 @@ def _fetch_plan(plan_id: Annotated[int, Path(title="The ID of the plan", ge=0)],
     """
     item = db_session.get(GymMembershipPlansDB, plan_id)
     if not item:
+        logger.warning(f"Plan not found: {plan_id}")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Plan id:{plan_id} not found")
     return item
 
@@ -38,6 +45,7 @@ def add_plan(new_plan: GymMembershipPlansCreate, db_session: SessionDep) -> GymM
     db_session.add(db_item)
     db_session.commit()
     db_session.refresh(db_item)
+    logger.info(f"Plan created: {db_item.plan_id}")
     return db_item
 
 
@@ -78,6 +86,7 @@ def update_plan(updated_plan: GymMembershipPlansCreate,
     db_session.add(existing_plan)
     db_session.commit()
     db_session.refresh(existing_plan)
+    logger.info(f"Plan updated: {existing_plan.plan_id}")
     return existing_plan
 
 
@@ -90,6 +99,7 @@ def delete_plan(db_session: SessionDep,
     :param existing_plan: Resolved plan, from the dependency.
     :return: Nothing.
     """
+    logger.info(f"Plan deleted: {existing_plan.plan_id}")
     db_session.delete(existing_plan)
     db_session.commit()
     return
