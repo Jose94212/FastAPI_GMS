@@ -1,3 +1,9 @@
+"""
+Endpoints for the Member Subscriptions resource. No auth dependency on these routes yet.
+There's no update/PATCH route here - cancelling/renewing is done via delete + a fresh
+add_subscription rather than mutating an existing row in place.
+"""
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, status, HTTPException, Depends, Path
@@ -6,6 +12,8 @@ from sqlmodel import select
 from database import SessionDep
 from gms_assets.member_subscriptions.model import GymSubscriptionsDB
 from gms_assets.member_subscriptions.schemas import GymSubscriptionsCreate
+
+logger = logging.getLogger(__name__)
 
 router_subscriptions = APIRouter(prefix="/subscriptions",
                                  tags=['Subscription'])
@@ -21,6 +29,7 @@ def _fetch_subscription(subscription_id: Annotated[int, Path(title="The ID of th
     """
     subscription_details = db_session.get(GymSubscriptionsDB, subscription_id)
     if not subscription_details:
+        logger.warning(f"Subscription not found: {subscription_id}")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Subscription id:{subscription_id} not found")
     return subscription_details
 
@@ -38,6 +47,7 @@ def add_subscription(db_session: SessionDep,
     db_session.add(db_item)
     db_session.commit()
     db_session.refresh(db_item)
+    logger.info(f"Subscription created: {db_item.subscription_id}")
     return db_item
 
 
@@ -50,6 +60,7 @@ def delete_subscription(db_session: SessionDep,
     :param existing_subscription: Resolved subscription, from the dependency.
     :return: Nothing.
     """
+    logger.info(f"Subscription deleted: {existing_subscription.subscription_id}")
     db_session.delete(existing_subscription)
     db_session.commit()
     return

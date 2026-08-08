@@ -1,3 +1,6 @@
+"""
+DB model for the Member Subscriptions resource.
+"""
 from datetime import date
 from typing import TYPE_CHECKING, Optional
 
@@ -11,7 +14,9 @@ if TYPE_CHECKING:
 
 class GymSubscriptionsDB(GymSubscriptionsCreate, table=True):
     """
-
+    DB-table created as per this class. cascade_delete's on GymMembersDB.subscriptions
+    (the other side of this relationship) means deleting a member takes their
+    subscriptions with them.
     """
     subscription_id: Optional[int] = Field(primary_key=True, default=None)
     record_created: date = Field(default_factory=date.today)
