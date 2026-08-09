@@ -14,3 +14,4 @@ gms.db-journal
 
 # Test artifacts
 .pytest_cache/
+/.env

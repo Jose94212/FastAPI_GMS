@@ -6,7 +6,13 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import create_engine, Session, SQLModel
 
-engine = create_engine("sqlite:///./gms.db")
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./gms.db")
+engine = create_engine(DATABASE_URL)
 
 
 def create_db_and_tables():

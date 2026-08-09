@@ -2,6 +2,11 @@
 Shared pytest fixtures for the whole test suite. Anything defined here is
 automatically visible to every test file under tests/, no import needed.
 """
+
+import os
+
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool

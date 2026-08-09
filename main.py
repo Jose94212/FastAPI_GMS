@@ -1,13 +1,15 @@
 """
 Application entry point. Wires together every resource router, configures logging,
 and creates the FastAPI app. Run with: uvicorn main:gms --reload
+
+Schema management (creating/altering tables) is handled by Alembic migrations
+(see alembic/), not by the app itself - there's no startup hook that touches the
+database schema anymore.
 """
 import logging
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from database import create_db_and_tables
 from gms_assets.electronics.router import router_electronics
 from gms_assets.furniture.router import router_furniture
 from gms_assets.equipment.router import router_equipment
@@ -22,19 +24,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    Startup/shutdown hook for the app. Creates all DB tables before the app
-    starts serving requests; nothing runs on shutdown.
-    :param app: The FastAPI app instance (unused, required by the lifespan signature).
-    """
-    create_db_and_tables()
-    yield
-
-
-gms = FastAPI(lifespan=lifespan)
+gms = FastAPI()
 
 gms.include_router(router_equipment)
 gms.include_router(router_electronics)

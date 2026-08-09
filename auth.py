@@ -8,17 +8,22 @@ from typing import Annotated
 
 import bcrypt
 import jwt
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from starlette import status
 
 from database import SessionDep
 from gms_assets.members.models import GymMembersDB
 from gms_assets.members.schemas import GymRoles
 
+import os
+from dotenv import load_dotenv
+
 logger = logging.getLogger(__name__)
 
-SECRET_KEY = "JOSE"
+load_dotenv()
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
