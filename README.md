@@ -17,9 +17,11 @@ A FastAPI backend for running a gym: members, staff, lockers, membership plans a
 
 - [FastAPI](https://fastapi.tiangolo.com/) - web framework
 - [SQLModel](https://sqlmodel.tiangolo.com/) - ORM (SQLAlchemy + Pydantic combined)
-- SQLite - local/dev database
+- [PostgreSQL](https://www.postgresql.org/), hosted on [Neon](https://neon.com/) - database (serverless, scales to zero when idle, no deletion on inactivity)
+- [Alembic](https://alembic.sqlalchemy.org/) - schema migrations
 - [PyJWT](https://pyjwt.readthedocs.io/) + [bcrypt](https://pypi.org/project/bcrypt/) - authentication
 - [pytest](https://docs.pytest.org/) - testing
+- [Render](https://render.com/) - hosting (free web service, deploys from `main` on push)
 
 ## Project structure
 
@@ -29,6 +31,9 @@ GMS/
   auth.py              # password hashing, JWT issuing/decoding, auth dependencies
   database.py           # DB engine, session dependency
   seed_data.py          # populates the DB with sample data
+  .env                  # DATABASE_URL, SECRET_KEY - not committed, see Setup below
+  alembic/               # migration scripts (alembic/versions/) and env.py
+  alembic.ini             # Alembic config
   gms_assets/
     members/            # members + login
     staff/               # staff (linked to a member row)
@@ -50,7 +55,8 @@ Each resource folder follows the same pattern: `schemas.py` (request/response sh
 
 ### Prerequisites
 
-Python 3.11+
+- Python 3.11+
+- A [Neon](https://neon.com/) account (free tier) with a project created, for the Postgres connection string
 
 ### Setup
 
@@ -62,13 +68,26 @@ source venv/bin/activate        # venv\Scripts\activate on Windows
 pip install -r requirements.txt
 ```
 
+Create a `.env` file in the project root (never committed - it's in `.gitignore`):
+
+```
+DATABASE_URL=<your Neon connection string>
+SECRET_KEY=<a random secret - generate with: python3 -c "import secrets; print(secrets.token_hex(32))">
+```
+
+Then apply the schema to your database:
+
+```bash
+alembic upgrade head
+```
+
 ### Run it
 
 ```bash
 uvicorn main:gms --reload
 ```
 
-The app creates its SQLite tables automatically on startup. Visit `http://127.0.0.1:8000/docs` for interactive Swagger docs - every endpoint, request/response schema, and a "Try it out" button live there.
+Visit `http://127.0.0.1:8000/docs` for interactive Swagger docs - every endpoint, request/response schema, and a "Try it out" button live there.
 
 ### Sample data (optional)
 
@@ -77,6 +96,20 @@ python3 seed_data.py
 ```
 
 Populates the database with sample members, staff, plans, subscriptions, and inventory. Every seeded member/staff account logs in with the password `password123`.
+
+### Schema changes
+
+Table structure is managed by Alembic, not by the app itself - nothing runs automatically on startup. After changing a model:
+
+```bash
+alembic revision --autogenerate -m "describe the change"
+```
+
+Review the generated file in `alembic/versions/` (autogenerate isn't perfect), then apply it:
+
+```bash
+alembic upgrade head
+```
 
 ## Authentication
 
@@ -109,12 +142,23 @@ pytest -v
 ```
 
 - `tests/unit/` - no database, no HTTP client. Tests validators and pure functions directly (e.g. password hashing, the locker orphan-check) and router functions with a mocked DB session.
-- `tests/integration/` - spins up the full FastAPI app against a throwaway in-memory SQLite database per test (via the `client` fixture in `conftest.py`), and drives it through real HTTP requests. Never touches your real `gms.db`.
+- `tests/integration/` - spins up the full FastAPI app against a throwaway in-memory SQLite database per test (via the `client` fixture in `conftest.py`), and drives it through real HTTP requests. Never touches Neon, regardless of what `DATABASE_URL` points to.
 
 Run just one or the other with `pytest tests/unit` or `pytest tests/integration`.
 
-## Known limitations
+## Deployment
 
-- `SECRET_KEY` in `auth.py` is currently hardcoded - needs to move to an environment variable before any public deployment.
-- SQLite is fine for local development, but production deployment (planned: Render, with a Postgres database on Neon) requires migrating off it first, since most hosting platforms have an ephemeral filesystem.
-- Deployment is in progress and not live yet.
+Live on [Render](https://render.com/) (free web service tier), database on [Neon](https://neon.com/) (free Postgres). Deploys automatically on every push to `main`.
+
+- **Build command:** `pip install -r requirements.txt`
+- **Start command:** `uvicorn main:gms --host 0.0.0.0 --port $PORT`
+- **Environment variables (set in Render's dashboard, not committed):** `DATABASE_URL`, `SECRET_KEY`
+- **Schema:** managed by Alembic, applied directly against Neon (`alembic upgrade head`) - not run automatically on deploy, since the app's startup no longer touches the schema at all.
+
+Note: Render's free tier spins the service down after 15 minutes of inactivity - the first request after a period of idle takes about a minute to respond while it cold-starts.
+
+## Possible future improvements
+
+- **Async DB access** - routes are currently synchronous (`def`, not `async def`); FastAPI runs these in a thread pool so a slow Postgres round-trip doesn't block other requests, which is sufficient at this app's scale. Worth revisiting (`asyncpg` + SQLAlchemy's async engine) if this ever needs to handle real concurrent load.
+- **CI** - running the test suite automatically on every push (e.g. GitHub Actions), rather than only locally before pushing.
+- **Docker** - containerizing the app for portability across hosts, independent of Render's buildpack.
