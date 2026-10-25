@@ -1,0 +1,42 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "GMS Echo Tool",
+    "description": "Diagnostic tool that reflects the incoming request (headers, method, query) back to the caller. Used to inspect what the agent runtime forwards to a tool endpoint.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://REPLACE-WITH-YOUR-RENDER-URL.onrender.com",
+      "description": "GMS on Render"
+    }
+  ],
+  "paths": {
+    "/echo": {
+      "get": {
+        "operationId": "echo_request",
+        "summary": "Echo the incoming request",
+        "description": "Returns the HTTP method, all request headers (including Authorization, verbatim), and query parameters of the request this tool received. No authentication required.",
+        "responses": {
+          "200": {
+            "description": "The reflected request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" },
+                    "method": { "type": "string" },
+                    "authorization_present": { "type": "boolean" },
+                    "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+                    "query": { "type": "object", "additionalProperties": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
