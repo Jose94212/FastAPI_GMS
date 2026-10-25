@@ -18,6 +18,7 @@ from gms_assets.member_subscriptions.router import router_subscriptions
 from gms_assets.members.router import router_member
 from gms_assets.membership_plans.router import router_plans
 from gms_assets.staff.router import router_staff
+from gms_assets.echo.router import router_echo
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,6 +35,7 @@ gms.include_router(router_plans)
 gms.include_router(router_subscriptions)
 gms.include_router(router_staff)
 gms.include_router(router_locker)
+gms.include_router(router_echo)
 
 
 @gms.get("/")
